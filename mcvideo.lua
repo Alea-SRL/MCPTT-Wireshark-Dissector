@@ -66,6 +66,7 @@ assert(ProtoExpert.new, "Wireshark does not have the ProtoExpert class, so it's 
 local mcvideo_0 = Proto("mcvideo_0", "Mission Critical Video Protocol Transmission Control (0 type)")
 local mcvideo_1 = Proto("mcvideo_1", "Mission Critical Video Protocol Transmission Control (1 type)")
 local mcvideo_2 = Proto("mcvideo_2", "Mission Critical Video Protocol Transmission Control (2 type)")
+local mcvideo_3 = Proto("mcvideo_3", "Mission Critical Video MBMS subchannel Control Protocol")
 
 -- 3GPP TS 24.581 version 15 Release 15
 -- Table 9.2.3.1-1: Transmission control specific data fields
@@ -133,6 +134,23 @@ local type_codes_2 = {
     [2] = "Media reception end request",
     [3] = "Media reception end response",
     [4] = "Transmission control ack"
+}
+
+local type_codes_3 = {
+    [0] = "Map Group To Bearer",
+    [1] = "Unmap Group To Bearer"
+}
+
+local field_codes_3 = {
+    [0] = "Subchannel",
+    [1] = "TMGI",
+    [2] = "MCVideo Group ID",
+    [3] = "MCVideo Group ID"
+}
+
+local ip_version = {
+    [0] = "IP version 4",
+    [1] = "IP version 6"
 }
 
 local ack_code = {
@@ -258,8 +276,23 @@ local pf_msg_name_2		= ProtoField.new ("Message name", "mcvideo_2.msgname", ftyp
 --	[18] = "Overridden ID",
 local pf_rxprio_2		= ProtoField.uint16 ("mcvideo_2.rxprio", "Reception Priority", base.DEC)
 
+-- MCVIDEO_3
 
-
+local pf_type_3                 = ProtoField.new ("Message type", "mcvideo_3.type", ftypes.UINT8, type_codes_3, base.DEC, 0x0F)
+local pf_group_id_3             = ProtoField.new ("MCVideo Group Identity", "mcvideo_3.group_id", ftypes.STRING)
+local pf_tmgi                   = ProtoField.new ("Temporary Mobile Group Identity (TMGI)", "mcvideo_3.tmgi", ftypes.BYTES)
+local pf_subchannel             = ProtoField.new ("MBMS Subchannel", "mcvideo_3.mbms_subchannel", ftypes.BYTES)
+local pf_video_m_line           = ProtoField.new ("Video m-line Number", "mcvideo_3.video_m_line", ftypes.UINT8, nil, base.DEC, 0xF0)
+local pf_audio_m_line           = ProtoField.new ("Audio m-line Number", "mcvideo_3.audio_m_line", ftypes.UINT8, nil, base.DEC, 0x0F)
+local pf_control_m_line         = ProtoField.new ("Control m-line Number", "mcvideo_3.control_m_line", ftypes.UINT8, nil, base.DEC, 0xF0)
+local pf_fec_m_line             = ProtoField.new ("FEC m-line Number", "mcvideo_3.fec_m_line", ftypes.UINT8, nil, base.DEC, 0x0F)
+local pf_ip_version             = ProtoField.new ("IP Version", "mcvideo_3.ip_version", ftypes.UINT8, ip_version, base.DEC, 0xF0)
+local pf_transmission_ctrl_port = ProtoField.new ("Transmission Control Port", "mcvideo_3.transmission_ctrl_port", ftypes.UINT32)
+local pf_video_media_port       = ProtoField.new ("Video media Port", "mcvideo_3.video_media_port", ftypes.UINT32)
+local pf_audio_media_port       = ProtoField.new ("Audio media Port", "mcvideo_3.audio_media_port", ftypes.UINT32)
+local pf_fec_port               = ProtoField.new ("FEC Port", "mcvideo_3.fec_port", ftypes.UINT32)
+local pf_ipv4_addr              = ProtoField.new ("IPv4 Address", "mcvideo_3.ipv4_address", ftypes.IPv4)
+local pf_ipv6_addr              = ProtoField.new ("IPv6 Address", "mcvideo_3.ipv6_address", ftypes.IPv6)
 
 local pf_debug          = ProtoField.uint16 ("mcptt.debug", "Debug", base.DEC)
 
@@ -365,11 +398,30 @@ mcvideo_2.fields = {
 --	[18] = "Overridden ID",
 	pf_rxprio_2
 }
+
+mcvideo_3.fields = {
+    pf_type_3,
+    pf_group_id_3,
+    pf_tmgi,
+    pf_subchannel,
+    pf_video_m_line,
+    pf_audio_m_line,
+    pf_control_m_line,
+    pf_fec_m_line,
+    pf_ip_version,
+    pf_transmission_ctrl_port,
+    pf_video_media_port,
+    pf_audio_media_port,
+    pf_fec_port,
+    pf_ipv4_addr,
+    pf_ipv6_addr
+}
+
 -- Local values for our use
 local type_0    = Field.new("mcvideo_0.type")
 local type_1    = Field.new("mcvideo_1.type")
 local type_2    = Field.new("mcvideo_2.type")
-
+local type_3    = Field.new("mcvideo_3.type")
 
 
  local grantedid_mcvideo_0 = Field.new("mcvideo_0.grantedid")
@@ -1251,11 +1303,146 @@ function mcvideo_2.dissector(tvbuf,pktinfo,root)
     return pos
 end
 
-	
+function mcvideo_3.dissector(tvbuf, pktinfo, root)
+    dprint2("mcvideo_3.dissector called")
+
+    -- set the protocol column to show our protocol name
+    pktinfo.cols.protocol:set("MCV3")
+
+    -- Save the packet length
+    local pktlen = tvbuf:reported_length_remaining()
+
+    -- Add ourselves to the tree
+    -- The second argument represent how much packet length this tree represents,
+    -- we are taking the entire packet until the end.
+    local tree = root:add(mcvideo_3, tvbuf:range(0, pktlen), "Mission Critical MBMS subchannel Control Protocol")
+
+    -- Add the MCPTT type and ACK req. to the sub-tree
+    tree:add(pf_type_3, tvbuf:range(0, 1))
+
+    dprint2("MESSAGE TYPE:", type_3().value)
+    local pk_info = "MCV3 " .. type_codes_3[type_3().value]
+    pktinfo.cols.info = pk_info
+
+    -- We have parsed all the fixed order header
+    local pos = FIXED_HEADER_LEN
+    local pktlen_remaining = pktlen - pos
+
+    while pktlen_remaining > 0 do
+        dprint2("PKT remaining: ", pktlen_remaining)
+        local pad_calc = rtcp_padding(pos, tvbuf, pktlen, pktlen_remaining)
+        if pad_calc == -1 then
+            return
+        elseif pad_calc == -2 then
+            tree:add_proto_expert_info(ef_bad_field)
+            return
+        elseif pad_calc ~= nil and pad_calc > 0 then
+            pos = pad_calc
+        end
+
+        -- Get the Field ID (8 bits)
+        local field_id = tvbuf:range(pos, 1)
+        local field_name = field_codes_3[field_id:uint()]
+        pos = pos + 1
+
+        dprint2("Field binary id: ", field_id:uint())
+        dprint2("FIELD name: ", field_name)
+        dprint2("POS: ", pos - 1)
+
+        if field_name == "MCVideo Group ID" then
+            dprint2("============MCVideo Group ID")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):le_uint()
+            pos = pos + 1
+
+            -- Add the MCVideo Group Identity to the tree
+            local field_start = pos
+            tree:add(pf_group_id_3, tvbuf:range(pos, field_len))
+            pos = pos + field_len
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, field_start, 2)
+
+        elseif field_name == "TMGI" then
+            dprint2("============TMGI")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):le_uint()
+            pos = pos + 1
+
+            -- Add the TMGI to the tree
+            local field_start = pos
+            tree:add(pf_tmgi, tvbuf:range(pos, field_len))
+            pos = pos + field_len
+
+            dprint2("Padding until: ", pos)
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, field_start, 2)
+
+        elseif field_name == "Subchannel" then
+            dprint2("============Subchannel")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):le_uint()
+            pos = pos + 1
+
+            -- Add the MBMS Subchannel to the tree
+            -- Create a new subtree for the MBMS Subchannel
+            local subch_tree = tree:add(pf_subchannel, tvbuf:range(pos, field_len))
+
+            local video_line = bit.band(tvbuf:range(pos, 1):int(), 0x00F0)
+            local audio_line = bit.band(tvbuf:range(pos, 1):int(), 0x000F)
+            subch_tree:add(pf_video_m_line, tvbuf:range(pos, 1))
+            subch_tree:add(pf_audio_m_line, tvbuf:range(pos, 1))
+            pos = pos + 1
+            local control_line = bit.band(tvbuf:range(pos, 1):int(), 0x00F0)
+            local fec_line = bit.band(tvbuf:range(pos, 1):int(), 0x000F)
+            subch_tree:add(pf_control_m_line, tvbuf:range(pos, 1))
+            subch_tree:add(pf_fec_m_line, tvbuf:range(pos, 1))
+            pos = pos + 1
+            subch_tree:add(pf_ip_version, tvbuf:range(pos, 1))
+            local loc_ip_version = bit.rshift(tvbuf:range(pos, 1):int(), 4)
+            local loc_ip_version_name = ip_version[loc_ip_version]
+            pos = pos + 1
+            -- Spare
+            pos = pos + 3
+            if control_line ~= 0 then
+                subch_tree:add(pf_transmission_ctrl_port, tvbuf:range(pos, 4))
+                pos = pos + 4
+            end
+            subch_tree:add(pf_video_media_port, tvbuf:range(pos, 4))
+            pos = pos + 4
+            if audio_line ~= 0 then
+                subch_tree:add(pf_audio_media_port, tvbuf:range(pos, 4))
+                pos = pos + 4
+            end
+            if fec_line ~= 0 then
+                subch_tree:add(pf_fec_port, tvbuf:range(pos, 4))
+                pos = pos + 4
+            end
+            if loc_ip_version_name == "IP version 4" then
+                subch_tree:add(pf_ipv4_addr, tvbuf:range(pos, 4))
+                pos = pos + 4
+            elseif loc_ip_version_name == "IP version 6" then
+                subch_tree:add(pf_ipv6_addr, tvbuf:range(pos, 16))
+                pos = pos + 16
+            end
+        end
+
+        pktlen_remaining = pktlen - pos
+    end
+
+
+
+    dprint2("mcvideo_3.dissector returning", pos)
+
+    -- tell wireshark how much of tvbuff we dissected
+    return pos
+end
 
 -- we want to have our protocol dissection invoked for a specific RTCP APP Name,
 -- so get the rtcp.app.name dissector table and add our protocol to it
+local dissectorTable = DissectorTable.get("rtcp.app.name")
 
-DissectorTable.get("rtcp.app.name"):add("MCV0", mcvideo_0.dissector)
-DissectorTable.get("rtcp.app.name"):add("MCV1", mcvideo_1.dissector)
-DissectorTable.get("rtcp.app.name"):add("MCV2", mcvideo_2.dissector)
+dissectorTable:add("MCV0", mcvideo_0.dissector)
+dissectorTable:add("MCV1", mcvideo_1.dissector)
+dissectorTable:add("MCV2", mcvideo_2.dissector)
+dissectorTable:add("MCV3", mcvideo_3.dissector)

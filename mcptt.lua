@@ -88,6 +88,12 @@ local field_codes = {
     [12] = "Message Type",
     [13] = "Floor Indicator",
     [14] = "SSRC",
+    [15] = "List of Granted Users",
+    [16] = "List of SSRCs",
+    [17] = "Functional Alias",
+    [18] = "List of Functional Aliases",
+    [19] = "Location",
+    [20] = "List of Locations",
     [102] = "Floor Priority",
     [103] = "Duration",
     [104] = "Reject Cause",
@@ -121,14 +127,15 @@ local field_codes_pc = {
 local type_codes = {
     [0] = "Floor Request",
     [1] = "Floor Granted",
+    [2] = "Floor Taken",
     [3] = "Floor Deny",
     [4] = "Floor Release",
     [5] = "Floor Idle",
-    [2] = "Floor Taken",
     [6] = "Floor Revoke",
     [8] = "Floor Queue Position Request",
     [9] = "Floor Queue Position Info",
-    [10] = "Floor Ack"
+    [10] = "Floor Ack",
+    [15] = "Floor Release Multi Talker"
 }
 
 -- 3GPP TS 24.380 version 13.0.2 Release 13
@@ -222,6 +229,16 @@ local ip_version = {
     [1] = "IP version 6"
 }
 
+local location_type = {
+	[0] = "Not provided",
+	[1] = "ECGI",
+	[2] = "Tracking Area",
+	[3] = "PLMN ID",
+	[4] = "MBMS Service Area",
+	[5] = "MBSFN Area ID",
+	[6] = "Geographic coordinates"
+}
+
 local pf_type           = ProtoField.new ("Message type", "mcptt.type", ftypes.UINT8, type_codes, base.DEC, 0x0F)
 local pf_ackreq         = ProtoField.new ("ACK Requirement", "mcptt.ackreq", ftypes.UINT8, ack_code, base.DEC, 0x10)
 
@@ -241,6 +258,7 @@ local pf_sequence       = ProtoField.uint16 ("mcptt.sequence", "Sequence Number"
 local pf_queued_id      = ProtoField.new ("Queued User ID", "mcptt.queuedid", ftypes.STRING)
 local pf_source         = ProtoField.new ("Source", "mcptt.source", ftypes.UINT16, source_code, base.DEC)
 local pf_msg_type       = ProtoField.new ("Message ACK type", "mcptt.acktype", ftypes.UINT16, type_codes, base.DEC, 0x0700)
+local pf_fun_alias      = ProtoField.new ("Functional Alias", "mcptt.functionalalias", ftypes.STRING)
 
 local pf_indicators     = ProtoField.new ("Floor Indicator", "mcptt.indicator", ftypes.UINT16, nil, base.HEX)
 local pf_ind_normal     = ProtoField.new ("Normal", "mcptt.normal", ftypes.UINT16, nil, base.DEC, 0x8000)
@@ -248,12 +266,40 @@ local pf_ind_broad      = ProtoField.new ("Broadcast Group", "mcptt.broadcast", 
 local pf_ind_sys        = ProtoField.new ("System", "mcptt.system", ftypes.UINT16, nil, base.DEC, 0x2000)
 local pf_ind_emerg      = ProtoField.new ("Emergency", "mcptt.emergency", ftypes.UINT16, nil, base.DEC, 0x1000)
 local pf_ind_immin      = ProtoField.new ("Imminent Peril", "mcptt.imm_peril", ftypes.UINT16, nil, base.DEC, 0x0800)
-local pf_ind_queue      = ProtoField.new ("Queueing", "mcptt.queueing", ftypes.UINT16, nil, base.DEC, 0x0400)
-local pf_ind_dual       = ProtoField.new ("Dual Floor", "mcptt.dual_floor", ftypes.UINT16, nil, base.DEC, 0x0200)
-local pf_ind_temp       = ProtoField.new ("Temporary Group", "mcptt.temporary", ftypes.UINT16, nil, base.DEC, 0x0100)
-local pf_ind_multi      = ProtoField.new ("Multi-talker", "mcptt.multitalker", ftypes.UINT16, nil, base.DEC, 0x0080)
+local pf_ind_queueing   = ProtoField.new ("Queueing supported", "mcptt.queueing", ftypes.UINT16, nil, base.DEC, 0x0400)
+local pf_ind_dual       = ProtoField.new ("Dual floor", "mcptt.dual", ftypes.UINT16, nil, base.DEC, 0x0200)
+local pf_ind_temporary  = ProtoField.new ("Temporary group", "mcptt.temporary", ftypes.UINT16, nil, base.DEC, 0x0100)
+local pf_ind_multi      = ProtoField.new ("Multi-talker", "mcptt.multi", ftypes.UINT16, nil, base.DEC, 0x0080)
 
 local pf_ssrc           = ProtoField.new ("SSRC", "mcptt.ssrc", ftypes.UINT32, nil, base.HEX)
+
+local pf_trackinfo      = ProtoField.new ("Track Info", "mcptt.trackinfo", ftypes.NONE)
+local pf_ti_queueing    = ProtoField.new ("Queueing capability", "mcptt.queueingcapability", ftypes.BOOLEAN)
+local pf_ti_parttypelen = ProtoField.new ("Participant type length", "mcptt.participanttypelen", ftypes.UINT8)
+local pf_ti_parttype    = ProtoField.new ("Participant type", "mcptt.participanttype", ftypes.STRING)
+local pf_ti_partref     = ProtoField.new ("Participant ref", "mcptt.participantref", ftypes.UINT32)
+
+local pf_list_of_granted_users = ProtoField.new ("List of Granted Users", "mcptt.listofgrantedusers", ftypes.NONE)
+local pf_logu_num_users = ProtoField.new ("Number of users", "mcptt.logu.num_users", ftypes.UINT8)
+local pf_logu_user      = ProtoField.new ("User uri", "mcptt.logu.user", ftypes.STRING)
+
+local pf_list_of_ssrcs  = ProtoField.new ("List of SSRCs", "mcptt.listofssrcs", ftypes.NONE)
+local pf_los_num_ssrcs  = ProtoField.new ("Number of SSRCs", "mcptt.los.num_ssrcs", ftypes.UINT8);
+local pf_los_ssrc       = ProtoField.new ("SSRC", "mcptt.los.ssrc", ftypes.UINT32, nil, base.HEX);
+
+local pf_list_of_functional_aliases = ProtoField.new ("List of Functional Aliases", "mcptt.listoffunctionalaliases", ftypes.NONE)
+local pf_lofa_num_functional_aliases = ProtoField.new ("Number of functional aliases", "mcptt.lofa.num_functional_aliases", ftypes.UINT8)
+local pf_lofa_functional_alias = ProtoField.new ("Functional alias", "mcptt.lofa.functional_alias", ftypes.STRING)
+
+local pf_location       = ProtoField.new ("Location", "mcptt.location", ftypes.NONE)
+local pf_location_type  = ProtoField.new ("Location type", "mcptt.location.type", ftypes.UINT8, location_type, base.DEC)
+local pf_location_geocoordinates_latitude = ProtoField.new ("Latitude", "mcptt.location.geocoordinates.latitude", ftypes.BYTES)
+local pf_location_geocoordinates_longitude = ProtoField.new ("Longitude", "mcptt.location.geocoordinates.longitude", ftypes.BYTES)
+
+local pf_list_of_locations = ProtoField.new ("List of Locations", "mcptt.listoflocations", ftypes.NONE)
+local pf_lol_num_locations = ProtoField.new ("Number of locations", "mcptt.lol.num_locations", ftypes.UINT8)
+
+local pf_unknown        = ProtoField.new ("Unknown", "mcptt.unknown", ftypes.BYTES)
 
 local pf_debug          = ProtoField.uint16 ("mcptt.debug", "Debug", base.DEC)
 
@@ -298,19 +344,41 @@ mcptt.fields = {
     pf_req_perm,
     pf_user_id,
     pf_source,
+    pf_fun_alias,
     pf_indicators,
     pf_ind_normal,
     pf_ind_broad,
     pf_ind_sys,
     pf_ind_emerg,
     pf_ind_immin,
-    pf_ind_queue,
+    pf_ind_queueing,
     pf_ind_dual,
-    pf_ind_temp,
+    pf_ind_temporary,
     pf_ind_multi,
     pf_msg_type,
-    pf_debug,
-    pf_ssrc
+    pf_ssrc,
+    pf_trackinfo,
+    pf_ti_queueing,
+    pf_ti_parttypelen,
+    pf_ti_parttype,
+    pf_ti_partref,
+    pf_list_of_granted_users,
+    pf_logu_num_users,
+    pf_logu_user,
+    pf_list_of_ssrcs,
+    pf_los_num_ssrcs,
+    pf_los_ssrc,
+    pf_list_of_functional_aliases,
+    pf_lofa_num_functional_aliases,
+    pf_lofa_functional_alias,
+    pf_location,
+    pf_location_type,
+    pf_location_geocoordinates_latitude,
+    pf_location_geocoordinates_longitude,
+    pf_list_of_locations,
+    pf_lol_num_locations,
+    pf_unknown,
+    pf_debug
 }
 
 mcptt_pc.fields = {
@@ -589,9 +657,9 @@ function mcptt.dissector(tvbuf, pktinfo, root)
             ind_tree:add(pf_ind_sys, tvbuf:range(pos, field_len))
             ind_tree:add(pf_ind_emerg, tvbuf:range(pos, field_len))
             ind_tree:add(pf_ind_immin, tvbuf:range(pos, field_len))
-            ind_tree:add(pf_ind_queue, tvbuf:range(pos, field_len))
+            ind_tree:add(pf_ind_queueing, tvbuf:range(pos, field_len))
             ind_tree:add(pf_ind_dual, tvbuf:range(pos, field_len))
-            ind_tree:add(pf_ind_temp, tvbuf:range(pos, field_len))
+            ind_tree:add(pf_ind_temporary, tvbuf:range(pos, field_len))
             ind_tree:add(pf_ind_multi, tvbuf:range(pos, field_len))
             pos = pos + field_len
 
@@ -617,11 +685,203 @@ function mcptt.dissector(tvbuf, pktinfo, root)
             -- Add the SSRC to the tree
             tree:add(pf_ssrc, tvbuf:range(pos, field_len - 2))
             pos = pos + field_len
-        else -- If the field ID is not recognized, consider it a SSRC of 4 bytes
-            dprint2("============SSRC")
-            -- Add the SSRC to the tree
-            tree:add(pf_ssrc, tvbuf:range(pos - 1, 4))
+        elseif field_name == "Track Info" then
+            dprint2("============Track Info");
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):uint()
+            pos = pos + 1
+            local field_start = pos
+
+            -- Create a new subtree for Track Info
+            local track_info_tree = tree:add(pf_trackinfo, tvbuf:range(pos, field_len))
+            
+            -- Add the queueing capability
+            track_info_tree:add(pf_ti_queueing, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            -- Get the participant type length (8 bits)
+            local parttype_len = tvbuf:range(pos, 1):uint()
+            -- Add the participant type length
+            track_info_tree:add(pf_ti_parttypelen, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            -- Add the participant type
+            track_info_tree:add(pf_ti_parttype, tvbuf:range(pos, parttype_len))
+            pos = pos + parttype_len
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, pos - parttype_len, 0)
+
+            while(pos < field_start + field_len)
+            do
+                track_info_tree:add(pf_ti_partref, tvbuf:range(pos, 4))
+                pos = pos + 4
+            end
+        elseif field_name == "Functional Alias" then
+            dprint2("============Functional Alias")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):le_uint()
+            pos = pos + 1
+            local field_start = pos
+
+            -- Add the Functional Alias to the tree
+            tree:add(pf_fun_alias, tvbuf:range(pos, field_len))
+            pos = pos + field_len
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, field_start, 2)
+        elseif field_name == "List of Granted Users" then
+            dprint2("============List of Granted Users")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):le_uint()
+            pos = pos + 1
+            local field_start = pos
+
+            -- Create a new subtree for List of Granted Users
+            local list_of_granted_users_tree = tree:add(pf_list_of_granted_users, tvbuf:range(pos, field_len))
+
+            -- Get the number of users (8 bits)
+            local num_users = tvbuf:range(pos, 1):uint()
+            -- Add the number of users
+            list_of_granted_users_tree:add(pf_logu_num_users, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            for i=1, num_users
+            do
+                local user_len = tvbuf:range(pos, 1):uint()
+                pos = pos + 1
+
+                list_of_granted_users_tree:add(pf_logu_user, tvbuf:range(pos, user_len))
+                pos = pos + user_len
+            end
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, field_start, 2)
+        elseif field_name == "List of SSRCs" then
+            dprint2("============List of SSRCs")
+            -- Get the number of SSRCs (8 bits)
+            local num_ssrcs = tvbuf:range(pos, 1):le_uint()
+            
+            local field_len = 3 + num_ssrcs * 4
+
+            -- Create a new subtree for List of SSRCs
+            local list_of_ssrcs_tree = tree:add(pf_list_of_ssrcs, tvbuf:range(pos, field_len))
+
+            -- Add the number of SSRCs
+            list_of_ssrcs_tree:add(pf_los_num_ssrcs, tvbuf:range(pos, 1))
             pos = pos + 3
+
+            for i=1, num_ssrcs
+            do
+                list_of_ssrcs_tree:add(pf_los_ssrc, tvbuf:range(pos, 4))
+                pos = pos + 4
+            end
+        elseif field_name == "List of Functional Aliases" then
+            dprint2("============List of Functional Aliases")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):le_uint()
+            pos = pos + 1
+            local field_start = pos
+
+            -- Create a new subtree for List of Functional Aliases
+            local list_of_functional_aliases_tree = tree:add(pf_list_of_functional_aliases, tvbuf:range(pos, field_len))
+
+            -- Get the number of functional aliases (8 bits)
+            local num_functional_aliases = tvbuf:range(pos, 1):uint()
+            -- Add the number of functional aliases
+            list_of_functional_aliases_tree:add(pf_lofa_num_functional_aliases, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            for i=1, num_functional_aliases
+            do
+                local functional_alias_len = tvbuf:range(pos, 1):uint()
+                pos = pos + 1
+
+                list_of_functional_aliases_tree:add(pf_lofa_functional_alias, tvbuf:range(pos, functional_alias_len))
+                pos = pos + functional_alias_len
+            end
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, field_start, 2)
+        elseif field_name == "Location" then
+            dprint2("============Location")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):uint()
+            pos = pos + 1
+            local field_start = pos
+            
+            -- Create a new subtree for Location
+            local location_tree = tree:add(pf_location, tvbuf:range(pos, field_len))
+            
+            -- Get the location type
+            local location_type = tvbuf:range(pos, 1):uint()
+            location_tree:add(pf_location_type, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            if location_type == 6 then
+                -- Get the latitude
+                location_tree:add(pf_location_geocoordinates_latitude, tvbuf:range(pos, 3))
+                pos = pos + 3
+                
+                -- Get the longitude
+                location_tree:add(pf_location_geocoordinates_longitude, tvbuf:range(pos, 3))
+                pos = pos + 3
+            end
+            
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, field_start, 2)
+        elseif field_name == "List of Locations" then
+            dprint2("============List of Locations")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):uint()
+            pos = pos + 1
+            local field_start = pos
+
+            -- Create a new subtree for List of Locations
+            local list_of_locations_tree = tree:add(pf_list_of_locations, tvbuf:range(pos, field_len))
+            
+            -- Get the number of locations (8 bits)
+            local num_locations = tvbuf:range(pos, 1):uint()
+            -- Add the number of locations
+            list_of_locations_tree:add(pf_lol_num_locations, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            for i=1, num_locations
+            do
+                local location_length = 1
+
+                local location_type = tvbuf:range(pos, 1):uint()
+
+                if location_type == 6 then
+                    location_length = location_length + 6
+                end
+
+                local location_tree = list_of_locations_tree:add(pf_location, tvbuf:range(pos, location_length))
+
+                location_tree:add(pf_location_type, tvbuf:range(pos, 1))
+                pos = pos + 1
+                
+                if location_type == 6 then
+                    -- Get the latitude
+                    location_tree:add(pf_location_geocoordinates_latitude, tvbuf:range(pos, 3))
+                    pos = pos + 3
+                    
+                    -- Get the longitude
+                    location_tree:add(pf_location_geocoordinates_longitude, tvbuf:range(pos, 3))
+                    pos = pos + 3
+                end
+            end
+
+            pos = pos + field_padding(pos, field_start, 2);
+        else -- If the field ID is not recognized, consider it unkown
+            dprint2("============Unknown")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):uint()
+            pos = pos + 1
+
+            -- Add the Unknown to the tree
+            tree:add(pf_unknown, tvbuf:range(pos, field_len))
+            pos = pos + field_len
         end
 
         pktlen_remaining = pktlen - pos
@@ -852,10 +1112,13 @@ function mcptt_cp.dissector(tvbuf, pktinfo, root)
             pos = pos + 1
 
             -- Add the TMGI to the tree
+            local field_start = pos
             tree:add(pf_tmgi, tvbuf:range(pos, field_len))
             pos = pos + field_len
 
             dprint2("Padding until: ", pos)
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, field_start, 2)
 
         elseif field_name == "Subchannel" then
             dprint2("============Subchannel")
@@ -903,7 +1166,11 @@ end
 
 -- we want to have our protocol dissection invoked for a specific RTCP APP Name,
 -- so get the rtcp.app.name dissector table and add our protocol to it
-DissectorTable.get("rtcp.app.name"):add("MCPT", mcptt.dissector)
-DissectorTable.get("rtcp.app.name"):add("MCPC", mcptt_pc.dissector)
-DissectorTable.get("rtcp.app.name"):add("MCMC", mcptt_cp.dissector)
-DissectorTable.get("rtcp.app.name"):add("MCCP", mcptt_cp.dissector)
+local dissectorTable = DissectorTable.get("rtcp.app.name")
+
+dissectorTable:add("MCPT", mcptt.dissector)
+dissectorTable:add("MCPC", mcptt_pc.dissector)
+dissectorTable:add("MCMC", mcptt_cp.dissector)
+
+-- Obsolete
+dissectorTable:add("MCCP", mcptt_cp.dissector)
