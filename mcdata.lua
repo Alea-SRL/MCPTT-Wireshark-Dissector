@@ -35,15 +35,15 @@ local IEI_codes = {
     [1] = "SDS SIGNALLING PAYLOAD",
     [2] = "FD SIGNALLING PAYLOAD",
     [3] = "DATA PAYLOAD",
-    [4] = "SDS NOTIFICATION",
-    [5] = "FD NOTIFICATION",
-    [6] = "SDS OFF-NETWORK MESSAGE",
-    [7] = "SDS OFF-NETWORK NOTIFICATION",
-    [8] = "FD NETWORK NOTIFICATION",
-    [9] = "COMMUNICATION RELEASE",
-    [10] = "DEFERRED LIST ACCESS REQUEST",
-    [11] = "DEFERRED LIST ACCESS RESPONSE",
-    [12] = "FD HTTP TERMINATION",
+    [5] = "SDS NOTIFICATION",
+    [6] = "FD NOTIFICATION",
+    [7] = "SDS OFF-NETWORK MESSAGE",
+    [8] = "SDS OFF-NETWORK NOTIFICATION",
+    [9] = "FD NETWORK NOTIFICATION",
+    [10] = "COMMUNICATION RELEASE",
+    [11] = "DEFERRED LIST ACCESS REQUEST",
+    [12] = "DEFERRED LIST ACCESS RESPONSE",
+    [13] = "FD HTTP TERMINATION",
     [120] = "Payload"
 }
 
@@ -63,84 +63,91 @@ local PayloadContentType_codes = {
     [6] = "ENHANCED STATUS"
 }
 
-
-
 IEI = ProtoField.int8("mcdata.iei", "IEI", base.DEC, IEI_codes)
 DateTime_i = ProtoField.uint64("mcdata.datetime_i", "DateTime", base.DEC)
 DateTime = ProtoField.absolute_time("mcdata.datetime", "DateTime", base.LOCAL)
-message_id = ProtoField.string("mcdata.message_id", "Message ID", base.ASCII)
 conversation_id = ProtoField.string("mcdata.conversation_id", "Conversation ID")
+message_id = ProtoField.string("mcdata.message_id", "Message ID")
 DispostionRequest = ProtoField.uint8("mcdata.dispositionrequesttype", "Disposition Request Type", base.DEC, DispostionRequest_codes, 128)
 PayloadsCount = ProtoField.uint8("mcdata.payload.count", "Number of payloads", base.DEC)
 PayloadsTotalSize = ProtoField.uint16("mcdata.payload.TotalSize", "Length of Payload contents", base.DEC)
 PayloadsContentType = ProtoField.uint8("mcdata.payload.contenttype", "Payload content type", base.DEC, PayloadContentType_codes)
 PayloadsContentText = ProtoField.string("mcdata.payload.contentstring", "Payload content type string")
 
-
-
-
-mcdata_protocol.fields = {IEI,DateTime_i,DateTime,message_id,conversation_id,DispostionRequest, PayloadsCount,PayloadsTotalSize,PayloadsContentType,PayloadsContentText}
+mcdata_protocol.fields = {IEI,DateTime_i,DateTime,conversation_id,message_id,DispostionRequest, PayloadsCount,PayloadsTotalSize,PayloadsContentType,PayloadsContentText}
 
 function mcdata_protocol.dissector(buffer, pinfo, tree)
-  length = buffer:len()
-  if length == 0 then return end
+	length = buffer:len()
+	if length == 0 then 
+		return 
+	end
+	
+	pinfo.cols.protocol = mcdata_protocol.name
 
-  pinfo.cols.protocol = mcdata_protocol.name
+	local subtree = tree:add(mcdata_protocol, buffer(), "MCDATA Talkway")
 
-  local subtree = tree:add(mcdata_protocol, buffer(), "MCDATA Talkway")
-  
-  
-  
-  local IEI_number =  buffer(0,1):le_uint()
-  local usecs = buffer(1,5):le_uint64()
--- gets the seconds as a Lua number
-local secs  = (usecs):tonumber()
-local nstime = NSTime.new(secs, 0)
+	local IEI_number =  buffer(0,1):uint()
 
--- add it to the tree, highlighting the real buffer's bytes, but with the real NSTime value
+	subtree:add(IEI, buffer(0,1))
 
-  
-  subtree:add_le(IEI, buffer(0,1))
-  
-  if IEI_number > 0 and IEI_number < 12 then
-  	if IEI_number == 1 then
-      subtree:add_le(DateTime_i, buffer(1,5))
-
-      subtree:add(DateTime, buffer(1,5), nstime)
-      subtree:add(message_id, buffer(5,16))
-      subtree:add(conversation_id, buffer(22,16))
-	  subtree:add_le(DispostionRequest, buffer(38,1))
-    end
-    if IEI_number == 3 then
-
-      subtree:add(PayloadsCount, buffer(1,1))
-	  subtree:add(IEI, buffer(2,1))
-	  
-	  local IEI_Payload_number =  buffer(2,1):le_uint()
-      local PayloadsCount_number =  buffer(1,1):le_uint()
-
-  	  if IEI_Payload_number == 120 then
-        subtree:add(PayloadsTotalSize, buffer(3,2))
-        local PayloadsTotalSize_number =  buffer(3,2):int()
-        debug("PayloadsTotalSize_number " .. PayloadsTotalSize_number)
-                
-        for i=1,PayloadsCount_number do
-  			local payloadsubtree = subtree:add(mcdata_protocol, buffer(), "Payload")
- 				  local payload_type =  buffer(5,1):le_uint()
-  			      payloadsubtree:add(PayloadsContentType, buffer(5,1))
-  			      if payload_type == 1 then
-  			         payloadsubtree:add(PayloadsContentText, buffer(6,PayloadsTotalSize_number-1))
-  			      end
-
+	if IEI_number > 0 and IEI_number < 12 then
+		if IEI_number == 1 then		
+			subtree:add(DateTime_i, buffer(1,5))
+			subtree:add(DateTime, buffer(1,5), CalculateNSTime(buffer(1, 5)))
+			subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(6, 16)))))
+			subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(22, 16)))))
+			subtree:add(DispostionRequest, buffer(38,1))
+		elseif IEI_number == 3 then
+			subtree:add(PayloadsCount, buffer(1,1))
+			subtree:add(IEI, buffer(2,1))
+		  
+			local IEI_Payload_number =  buffer(2,1):uint()
+			local PayloadsCount_number =  buffer(1,1):uint()
+			
+	  		if IEI_Payload_number == 120 then
+				subtree:add(PayloadsTotalSize, buffer(3,2))
+				local PayloadsTotalSize_number =  buffer(3,2):int()
+			
+				for i=1,PayloadsCount_number do
+					local payloadsubtree = subtree:add(mcdata_protocol, buffer(), "Payload")
+					local payload_type =  buffer(5,1):uint()
+					payloadsubtree:add(PayloadsContentType, buffer(5,1))
+					if payload_type == 1 then
+						payloadsubtree:add(PayloadsContentText, buffer(6,PayloadsTotalSize_number-1))
+					end
+				end
+			end
+		elseif IEI_number == 5 then		
+			subtree:add(DispostionRequest, buffer(1,1))
+			subtree:add(DateTime, buffer(2,5), CalculateNSTime(buffer(2, 5)))
+			subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(7, 16)))))
+			subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(23, 16)))))
 		end
-	  end
-    end
-  end
-
-
+	end
 end
 
-local dissectorTable = DissectorTable.get("media_type")
+DissectorTable.get("media_type"):add("application/vnd.3gpp.mcdata-signalling", mcdata_protocol.dissector)
+DissectorTable.get("media_type"):add("application/vnd.3gpp.mcdata-payload", mcdata_protocol.dissector)
 
-dissectorTable:add("application/vnd.3gpp.mcdata-signalling", mcdata_protocol.dissector)
-dissectorTable:add("application/vnd.3gpp.mcdata-payload", mcdata_protocol.dissector)
+function CalculateNSTime(secs_bytes)
+	-- gets the seconds as a Lua number
+	-- P.S. le = little endian, the mcdata packet is encoded in big endian
+	local secs = secs_bytes:uint64():tonumber()
+	local nstime = NSTime.new(secs, 0)
+	
+	return nstime
+end
+
+function FormatUUID(uuid)
+	local count = 0
+	local result = ''
+	for i = 1, #uuid do
+    		local char= uuid:sub(i,i)
+		count = count + 1
+		result = result .. char
+		if count == 8 or count == 12 or count == 16 or count == 20 then
+			result  = result .. '-'
+		end
+	end
+	return result
+end
