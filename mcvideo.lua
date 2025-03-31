@@ -210,6 +210,12 @@ local pf_msg_name_0		= ProtoField.new ("Message name", "mcvideo_0.msgname", ftyp
 --	[18] = "Overridden ID",
 local pf_rxprio_0		= ProtoField.uint16 ("mcvideo_0.rxprio", "Reception Priority", base.DEC)
 
+local pf_trackinfo_0      = ProtoField.new ("Track Info", "mcvideo_0.trackinfo", ftypes.NONE)
+local pf_ti_queueing_0    = ProtoField.new ("Queueing capability", "mcvideo_0.queueingcapability", ftypes.BOOLEAN)
+local pf_ti_parttypelen_0 = ProtoField.new ("Participant type length", "mcvideo_0.participanttypelen", ftypes.UINT8)
+local pf_ti_parttype_0    = ProtoField.new ("Participant type", "mcvideo_0.participanttype", ftypes.STRING)
+local pf_ti_partref_0     = ProtoField.new ("Participant ref", "mcvideo_0.participantref", ftypes.UINT32)
+
 -- MCVIDEO_1
 local pf_type_1			= ProtoField.new ("Message type", "mcvideo_1.type", ftypes.UINT8, type_codes_1, base.DEC, 0x0F)
 local pf_ackreq_1        = ProtoField.new ("ACK Requirement", "mcvideo_1.ackreq", ftypes.UINT8, ack_code, base.DEC, 0x10)
@@ -244,6 +250,12 @@ local pf_msg_name_1		= ProtoField.new ("Message name", "mcvideo_1.msgname", ftyp
 local pf_rxprio_1		= ProtoField.uint16 ("mcvideo_1.rxprio", "Reception Priority", base.DEC)
 -- MCVIDEO_2
 
+local pf_trackinfo_1      = ProtoField.new ("Track Info", "mcvideo_1.trackinfo", ftypes.NONE)
+local pf_ti_queueing_1    = ProtoField.new ("Queueing capability", "mcvideo_1.queueingcapability", ftypes.BOOLEAN)
+local pf_ti_parttypelen_1 = ProtoField.new ("Participant type length", "mcvideo_1.participanttypelen", ftypes.UINT8)
+local pf_ti_parttype_1    = ProtoField.new ("Participant type", "mcvideo_1.participanttype", ftypes.STRING)
+local pf_ti_partref_1     = ProtoField.new ("Participant ref", "mcvideo_1.participantref", ftypes.UINT32)
+
 local pf_type_2			= ProtoField.new ("Message type", "mcvideo_2.type", ftypes.UINT8, type_codes_2, base.DEC, 0x0F)
 local pf_ackreq_2         = ProtoField.new ("ACK Requirement", "mcvideo_2.ackreq", ftypes.UINT8, ack_code, base.DEC, 0x10)
 
@@ -275,6 +287,12 @@ local pf_msg_name_2		= ProtoField.new ("Message name", "mcvideo_2.msgname", ftyp
 --	[17] = "Overriding ID",
 --	[18] = "Overridden ID",
 local pf_rxprio_2		= ProtoField.uint16 ("mcvideo_2.rxprio", "Reception Priority", base.DEC)
+
+local pf_trackinfo_2      = ProtoField.new ("Track Info", "mcvideo_2.trackinfo", ftypes.NONE)
+local pf_ti_queueing_2    = ProtoField.new ("Queueing capability", "mcvideo_2.queueingcapability", ftypes.BOOLEAN)
+local pf_ti_parttypelen_2 = ProtoField.new ("Participant type length", "mcvideo_2.participanttypelen", ftypes.UINT8)
+local pf_ti_parttype_2    = ProtoField.new ("Participant type", "mcvideo_2.participanttype", ftypes.STRING)
+local pf_ti_partref_2     = ProtoField.new ("Participant ref", "mcvideo_2.participantref", ftypes.UINT32)
 
 -- MCVIDEO_3
 
@@ -325,6 +343,11 @@ mcvideo_0.fields = {
 	pf_ind_emerg_0,
 	pf_ind_immin_0,
 	pf_ssrc_0,
+    pf_trackinfo_0,
+    pf_ti_queueing_0,
+    pf_ti_parttypelen_0,
+    pf_ti_parttype_0,
+    pf_ti_partref_0,
 	pf_result_0,
 	pf_msg_name_0,
 --	[17] = "Overriding ID",
@@ -359,6 +382,11 @@ mcvideo_1.fields = {
 	pf_ind_emerg_1,
 	pf_ind_immin_1,
 	pf_ssrc_1,
+    pf_trackinfo_1,
+    pf_ti_queueing_1,
+    pf_ti_parttypelen_1,
+    pf_ti_parttype_1,
+    pf_ti_partref_1,
 	pf_result_1,
 	pf_msg_name_1,
 --	[17] = "Overriding ID",
@@ -392,6 +420,11 @@ mcvideo_2.fields = {
 	pf_ind_emerg_2,
 	pf_ind_immin_2,
 	pf_ssrc_2,
+    pf_trackinfo_2,
+    pf_ti_queueing_2,
+    pf_ti_parttypelen_2,
+    pf_ti_parttype_2,
+    pf_ti_partref_2,
 	pf_result_2,
 	pf_msg_name_2,
 --	[17] = "Overriding ID",
@@ -683,6 +716,39 @@ function mcvideo_0.dissector(tvbuf,pktinfo,root)
 			tree:add(pf_ssrc_0, tvbuf:range(pos,4))
             pos = pos + field_len
 		
+        elseif field_name == "Track Info" then
+            dprint2("============Track Info");
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):uint()
+            pos = pos + 1
+            local field_start = pos
+
+            -- Create a new subtree for Track Info
+            local track_info_tree = tree:add(pf_trackinfo_0, tvbuf:range(pos, field_len))
+            
+            -- Add the queueing capability
+            track_info_tree:add(pf_ti_queueing_0, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            -- Get the participant type length (8 bits)
+            local parttype_len = tvbuf:range(pos, 1):uint()
+            -- Add the participant type length
+            track_info_tree:add(pf_ti_parttypelen_0, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            -- Add the participant type
+            track_info_tree:add(pf_ti_parttype_0, tvbuf:range(pos, parttype_len))
+            pos = pos + parttype_len
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, pos - parttype_len, 0)
+
+            while(pos < field_start + field_len)
+            do
+                track_info_tree:add(pf_ti_partref_0, tvbuf:range(pos, 4))
+                pos = pos + 4
+            end
+        
 		elseif field_name == "Result" then
 			dprint2("============Result")
 			-- Get the field length (8 bits)
@@ -973,6 +1039,39 @@ function mcvideo_1.dissector(tvbuf,pktinfo,root)
 			tree:add(pf_ssrc_1, tvbuf:range(pos,4))
             pos = pos + field_len
 		
+        elseif field_name == "Track Info" then
+            dprint2("============Track Info");
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):uint()
+            pos = pos + 1
+            local field_start = pos
+
+            -- Create a new subtree for Track Info
+            local track_info_tree = tree:add(pf_trackinfo_1, tvbuf:range(pos, field_len))
+            
+            -- Add the queueing capability
+            track_info_tree:add(pf_ti_queueing_1, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            -- Get the participant type length (8 bits)
+            local parttype_len = tvbuf:range(pos, 1):uint()
+            -- Add the participant type length
+            track_info_tree:add(pf_ti_parttypelen_1, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            -- Add the participant type
+            track_info_tree:add(pf_ti_parttype_1, tvbuf:range(pos, parttype_len))
+            pos = pos + parttype_len
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, pos - parttype_len, 0)
+
+            while(pos < field_start + field_len)
+            do
+                track_info_tree:add(pf_ti_partref_1, tvbuf:range(pos, 4))
+                pos = pos + 4
+            end
+        
 		elseif field_name == "Result" then
 			dprint2("============Result")
 			-- Get the field length (8 bits)
@@ -1258,6 +1357,39 @@ function mcvideo_2.dissector(tvbuf,pktinfo,root)
 			tree:add(pf_ssrc_2, tvbuf:range(pos,4))
             pos = pos + field_len
 		
+        elseif field_name == "Track Info" then
+            dprint2("============Track Info");
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos, 1):uint()
+            pos = pos + 1
+            local field_start = pos
+
+            -- Create a new subtree for Track Info
+            local track_info_tree = tree:add(pf_trackinfo_2, tvbuf:range(pos, field_len))
+            
+            -- Add the queueing capability
+            track_info_tree:add(pf_ti_queueing_2, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            -- Get the participant type length (8 bits)
+            local parttype_len = tvbuf:range(pos, 1):uint()
+            -- Add the participant type length
+            track_info_tree:add(pf_ti_parttypelen_2, tvbuf:range(pos, 1))
+            pos = pos + 1
+
+            -- Add the participant type
+            track_info_tree:add(pf_ti_parttype_2, tvbuf:range(pos, parttype_len))
+            pos = pos + parttype_len
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, pos - parttype_len, 0)
+
+            while(pos < field_start + field_len)
+            do
+                track_info_tree:add(pf_ti_partref_2, tvbuf:range(pos, 4))
+                pos = pos + 4
+            end
+        
 		elseif field_name == "Result" then
 			dprint2("============Result")
 			-- Get the field length (8 bits)
