@@ -177,6 +177,19 @@ local reject_cause = {
     [255] = "Other reason"
 }
 
+-- 9.2.10.2	Revoke cause codes and revoke cause phrase
+local revoke_cause = {
+    [1] = "Only one MCVideo client",
+    [2] = "Media burst too long",
+    [3] = "No permission to send a Media Burst",
+    [4] = "Media Burst pre-empted",
+    [5] = "Terminate the RTP stream",
+    [6] = "No resources available",
+    [7] = "Queue the transmission",
+    [8] = "No receiving participant",
+    [255] = "Other reason"
+}
+
 -- MCVIDEO_0
 local pf_type_0			= ProtoField.new ("Message type", "mcvideo_0.type", ftypes.UINT8, type_codes_0, base.DEC, 0x0F)
 local pf_ackreq_0       = ProtoField.new ("ACK Requirement", "mcvideo_0.ackreq", ftypes.UINT8, ack_code, base.DEC, 0x10)
@@ -184,6 +197,7 @@ local pf_ackreq_0       = ProtoField.new ("ACK Requirement", "mcvideo_0.ackreq",
 local pf_txprio_0		= ProtoField.uint16 ("mcvideo_0.txprio", "Transmission Priority", base.DEC)
 local pf_duration_0     = ProtoField.uint16 ("mcvideo_0.duration", "Duration (s)", base.DEC)
 local pf_reject_cause_0 = ProtoField.new ("Reject Cause", "mcvideo_0.rejcause", ftypes.UINT16, reject_cause, base.DEC)
+local pf_revoke_cause_0 = ProtoField.new ("Revoke Cause", "mcvideo_0.revcause", ftypes.UINT16, revoke_cause, base.DEC)
 local pf_reject_phrase_0= ProtoField.new ("Reject Phrase", "mcvideo_0.rejphrase", ftypes.STRING)
 local pf_queue_info_0   = ProtoField.uint16 ("mcvideo_0.queue", "Queue place", base.DEC)
 local pf_queue_unknown_0= ProtoField.new ("Queue place not kwnown", "mcvideo_0.queue_unknown", ftypes.STRING)
@@ -223,6 +237,7 @@ local pf_ackreq_1        = ProtoField.new ("ACK Requirement", "mcvideo_1.ackreq"
 local pf_txprio_1			= ProtoField.uint16 ("mcvideo_1.txprio", "Transmission Priority", base.DEC)
 local pf_duration_1       = ProtoField.uint16 ("mcvideo_1.duration", "Duration (s)", base.DEC)
 local pf_reject_cause_1   = ProtoField.new ("Reject Cause", "mcvideo_1.rejcause", ftypes.UINT16, reject_cause, base.DEC)
+local pf_revoke_cause_1   = ProtoField.new ("Revoke Cause", "mcvideo_1.revcause", ftypes.UINT16, revoke_cause, base.DEC)
 local pf_reject_phrase_1  = ProtoField.new ("Reject Phrase", "mcvideo_1.rejphrase", ftypes.STRING)
 local pf_queue_info_1     = ProtoField.uint16 ("mcvideo_1.queue", "Queue place", base.DEC)
 local pf_queue_unknown_1  = ProtoField.new ("Queue place not kwnown", "mcvideo_1.queue_unknown", ftypes.STRING)
@@ -262,6 +277,7 @@ local pf_ackreq_2         = ProtoField.new ("ACK Requirement", "mcvideo_2.ackreq
 local pf_txprio_2			= ProtoField.uint16 ("mcvideo_2.txprio", "Transmission Priority", base.DEC)
 local pf_duration_2       = ProtoField.uint16 ("mcvideo_2.duration", "Duration (s)", base.DEC)
 local pf_reject_cause_2   = ProtoField.new ("Reject Cause", "mcvideo_2.rejcause", ftypes.UINT16, reject_cause, base.DEC)
+local pf_revoke_cause_2   = ProtoField.new ("Revoke Cause", "mcvideo_2.revcause", ftypes.UINT16, revoke_cause, base.DEC)
 local pf_reject_phrase_2  = ProtoField.new ("Reject Phrase", "mcvideo_2.rejphrase", ftypes.STRING)
 local pf_queue_info_2     = ProtoField.uint16 ("mcvideo_2.queue", "Queue place", base.DEC)
 local pf_queue_unknown_2  = ProtoField.new ("Queue place not kwnown", "mcvideo_2.queue_unknown", ftypes.STRING)
