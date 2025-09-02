@@ -68,14 +68,14 @@ local mcvideo_1 = Proto("mcvideo_1", "Mission Critical Video Protocol Transmissi
 local mcvideo_2 = Proto("mcvideo_2", "Mission Critical Video Protocol Transmission Control (2 type)")
 local mcvideo_3 = Proto("mcvideo_3", "Mission Critical Video MBMS subchannel Control Protocol")
 
--- 3GPP TS 24.581 version 15 Release 15
+-- 3GPP TS 24.581 version 18.5.0
 -- Table 9.2.3.1-1: Transmission control specific data fields
 local field_codes = {
     [0] = "Transmission Priority",
     [1] = "Duration",
     [2] = "Reject Cause",
     [3] = "Queue Info",
-    [4] = "Granted Party's Identity",
+    [4] = "User Id of the Transmitting User",
     [5] = "Permission to Request the Transmission",
     [6] = "User ID",
     [7] = "Queue Size",
@@ -85,28 +85,32 @@ local field_codes = {
     [11] = "Track Info",
     [12] = "Message Type",
     [13] = "Transmission Indicator",	
-	[14] = "SSRC",
+	[14] = "Audio SSRC of the Transmitting User",
 	[15] = "Result",
 	[16] = "Message Name",
 	[17] = "Overriding ID",
 	[18] = "Overridden ID",
-	[19] = "Reception Priority",	
+	[19] = "Reception Priority",
+	[20] = "MCVideo Group Identity",
+	[21] = "Functional Alias field ID",
+	[22] = "Reception Mode",
+	[24] = "Video SSRC of the Transmitting User"
 }
 
--- 3GPP TS 24.581 version 15 Release 15
+-- 3GPP TS 24.581 version 18.5.0
 -- Table 9.2.2.1-1: Transmission control specific messages sent by the transmission participant
 local type_codes_0 = {
     [0] = "Transmission Request",
     [2] = "Transmission Release",
     [3] = "Queue Position Request",
     [4] = "Receive Media Request",
-    [5] = "Transmission Cancel Request",
-    [7] = "Remote Transmission Request",
-    [8] = "Remote Transmission Cancel Request"
+    [5] = "Transmission Cancel Request",  -- mantained for retrocompatibility
+    [7] = "Remote Transmission request",
+    [8] = "Remote Transmission cancel request"
 }
 
--- 3GPP TS 24.581 version 15 Release 15
--- Table 9.2.2.1-2: Transmission control specific messages sent by the transmission control server
+-- 3GPP TS 24.581 version 18.5.0
+-- Table 9.2.2.1-2: Transmission control specific messages sent by the transmission control server
 local type_codes_1 = {
     [0] = "Transmission Granted",
     [1] = "Transmission Rejected",
@@ -117,7 +121,7 @@ local type_codes_1 = {
     [6] = "Media transmission notification",
 	[7] = "Receive media response",
 	[8] = "Media reception notification",
-	[9] = "Transmission cancel response",
+	[9] = "Transmission cancel response",  -- mantained for retrocompatibility
 	[10] = "Transmission cancel request notify",
 	[11] = "Remote Transmission response",
 	[12] = "Remote Transmission cancel response",
@@ -126,8 +130,8 @@ local type_codes_1 = {
 	[15] = "Transmission idle"
 }
 
--- 3GPP TS 24.581 version 15 Release 15
--- Table 9.2.2.1-3: Transmission control specific messages sent by both the transmission control server and transmission control participant
+-- 3GPP TS 24.581 version 18.5.0
+-- Table 9.2.2.1-3: Transmission control specific messages sent by both the transmission control server and transmission control participant
 local type_codes_2 = {
     [0] = "Transmission end request",
     [1] = "Transmission end response",
@@ -136,16 +140,22 @@ local type_codes_2 = {
     [4] = "Transmission control ack"
 }
 
+-- 3GPP TS 24.581 version 18.5.0
+-- Table 9.3.2-1: MBMS subchannel control protocol messages
 local type_codes_3 = {
     [0] = "Map Group To Bearer",
-    [1] = "Unmap Group To Bearer"
+    [1] = "Unmap Group To Bearer",
+    [2] = "Application Paging"
+    -- Bearer Announcement, Subtype "a" ???
 }
 
+-- 3GPP TS 24.581 version 18.5.0
+-- Table 9.3.3.1-1: MBMS subchannel control specific data fields
 local field_codes_3 = {
-    [0] = "Subchannel",
+    [0] = "MBMS Subchannel ",
     [1] = "TMGI",
-    [2] = "MCVideo Group ID",
-    [3] = "MCVideo Group ID"
+    [2] = "MCVideo Group ID"
+    -- Monitoring state , Subtype "b" ???
 }
 
 local ip_version = {
@@ -158,6 +168,7 @@ local ack_code = {
     [1] = "ACK Required",
 }
 
+-- 3GPP TS 24.380 version 18.6.0
 -- Table 8.2.3.12-1: Source field coding
 local source_code = {
     [0] = "Transmission Participant",
@@ -166,6 +177,7 @@ local source_code = {
     [3] = "Non-Controlling MCPTT Function"
 }
 
+-- 3GPP TS 24.581 version 18.5.0
 -- 9.2.6.2	Rejection cause codes and rejection cause phrase
 local reject_cause = {
     [1] = "Transmission limit reached",
@@ -177,6 +189,7 @@ local reject_cause = {
     [255] = "Other reason"
 }
 
+-- 3GPP TS 24.581 version 18.5.0
 -- 9.2.10.2	Revoke cause codes and revoke cause phrase
 local revoke_cause = {
     [1] = "Only one MCVideo client",
@@ -217,12 +230,14 @@ local pf_ind_broad_0      = ProtoField.new ("Broadcast Group", "mcvideo_0.broadc
 local pf_ind_sys_0        = ProtoField.new ("System", "mcvideo_0.system", ftypes.UINT16, nil, base.DEC, 0x2000)
 local pf_ind_emerg_0      = ProtoField.new ("Emergency", "mcvideo_0.emergency", ftypes.UINT16, nil, base.DEC, 0x1000)
 local pf_ind_immin_0      = ProtoField.new ("Imminent Peril", "mcvideo_0.imm_peril", ftypes.UINT16, nil, base.DEC, 0x0800)
-local pf_ssrc_0			= ProtoField.uint32 ("mcvideo_0.ssrc", "SSRC", base.DEC)
-local pf_result_0			= ProtoField.bool ("mcvideo_0.result", "Result")
-local pf_msg_name_0		= ProtoField.new ("Message name", "mcvideo_0.msgname", ftypes.STRING)
+local pf_audio_ssrc_0	  = ProtoField.uint32 ("mcvideo_0.audio_ssrc", "Audio SSRC", base.DEC)
+local pf_video_ssrc_0	  = ProtoField.uint32 ("mcvideo_0.video_ssrc", "Video SSRC", base.DEC)
+local pf_result_0		  = ProtoField.bool ("mcvideo_0.result", "Result")
+local pf_msg_name_0		  = ProtoField.new ("Message name", "mcvideo_0.msgname", ftypes.STRING)
 --	[17] = "Overriding ID",
 --	[18] = "Overridden ID",
-local pf_rxprio_0		= ProtoField.uint16 ("mcvideo_0.rxprio", "Reception Priority", base.DEC)
+local pf_rxprio_0		     = ProtoField.uint16 ("mcvideo_0.rxprio", "Reception Priority", base.DEC)
+local pf_functional_alias_0  = ProtoField.new ("Functional Alias", "mcvideo_0.functional_alias", ftypes.STRING)
 
 local pf_trackinfo_0      = ProtoField.new ("Track Info", "mcvideo_0.trackinfo", ftypes.NONE)
 local pf_ti_queueing_0    = ProtoField.new ("Queueing capability", "mcvideo_0.queueingcapability", ftypes.BOOLEAN)
@@ -257,14 +272,16 @@ local pf_ind_broad_1      = ProtoField.new ("Broadcast Group", "mcvideo_1.broadc
 local pf_ind_sys_1        = ProtoField.new ("System", "mcvideo_1.system", ftypes.UINT16, nil, base.DEC, 0x2000)
 local pf_ind_emerg_1      = ProtoField.new ("Emergency", "mcvideo_1.emergency", ftypes.UINT16, nil, base.DEC, 0x1000)
 local pf_ind_immin_1      = ProtoField.new ("Imminent Peril", "mcvideo_1.imm_peril", ftypes.UINT16, nil, base.DEC, 0x0800)
-local pf_ssrc_1			= ProtoField.uint32 ("mcvideo_1.ssrc", "SSRC", base.DEC)
-local pf_result_1			= ProtoField.bool ("mcvideo_1.result", "Result")
-local pf_msg_name_1		= ProtoField.new ("Message name", "mcvideo_1.msgname", ftypes.STRING)
+local pf_audio_ssrc_1	  = ProtoField.uint32 ("mcvideo_1.audio_ssrc", "Audio SSRC", base.DEC)
+local pf_video_ssrc_1	  = ProtoField.uint32 ("mcvideo_1.video_ssrc", "Video SSRC", base.DEC)
+local pf_result_1		  = ProtoField.bool ("mcvideo_1.result", "Result")
+local pf_msg_name_1		  = ProtoField.new ("Message name", "mcvideo_1.msgname", ftypes.STRING)
 --	[17] = "Overriding ID",
 --	[18] = "Overridden ID",
-local pf_rxprio_1		= ProtoField.uint16 ("mcvideo_1.rxprio", "Reception Priority", base.DEC)
--- MCVIDEO_2
+local pf_rxprio_1		     = ProtoField.uint16 ("mcvideo_1.rxprio", "Reception Priority", base.DEC)
+local pf_functional_alias_1  = ProtoField.new ("Functional Alias", "mcvideo_1.functional_alias", ftypes.STRING)
 
+-- MCVIDEO_2
 local pf_trackinfo_1      = ProtoField.new ("Track Info", "mcvideo_1.trackinfo", ftypes.NONE)
 local pf_ti_queueing_1    = ProtoField.new ("Queueing capability", "mcvideo_1.queueingcapability", ftypes.BOOLEAN)
 local pf_ti_parttypelen_1 = ProtoField.new ("Participant type length", "mcvideo_1.participanttypelen", ftypes.UINT8)
@@ -297,7 +314,8 @@ local pf_ind_broad_2      = ProtoField.new ("Broadcast Group", "mcvideo_2.broadc
 local pf_ind_sys_2        = ProtoField.new ("System", "mcvideo_2.system", ftypes.UINT16, nil, base.DEC, 0x2000)
 local pf_ind_emerg_2      = ProtoField.new ("Emergency", "mcvideo_2.emergency", ftypes.UINT16, nil, base.DEC, 0x1000)
 local pf_ind_immin_2      = ProtoField.new ("Imminent Peril", "mcvideo_2.imm_peril", ftypes.UINT16, nil, base.DEC, 0x0800)
-local pf_ssrc_2			= ProtoField.uint32 ("mcvideo_2.ssrc", "SSRC", base.DEC)
+local pf_audio_ssrc_2	  = ProtoField.uint32 ("mcvideo_2.audio_ssrc", "Audio SSRC", base.DEC)
+local pf_video_ssrc_2	  = ProtoField.uint32 ("mcvideo_2.video_ssrc", "Video SSRC", base.DEC)
 local pf_result_2			= ProtoField.bool ("mcvideo_2.result", "Result")
 local pf_msg_name_2		= ProtoField.new ("Message name", "mcvideo_2.msgname", ftypes.STRING)
 --	[17] = "Overriding ID",
@@ -358,7 +376,8 @@ mcvideo_0.fields = {
 	pf_ind_sys_0,
 	pf_ind_emerg_0,
 	pf_ind_immin_0,
-	pf_ssrc_0,
+	pf_audio_ssrc_0,
+	pf_video_ssrc_0,
     pf_trackinfo_0,
     pf_ti_queueing_0,
     pf_ti_parttypelen_0,
@@ -368,7 +387,8 @@ mcvideo_0.fields = {
 	pf_msg_name_0,
 --	[17] = "Overriding ID",
 --	[18] = "Overridden ID",
-	pf_rxprio_0
+	pf_rxprio_0,
+	pf_functional_alias_0
 }
 
 
@@ -397,7 +417,8 @@ mcvideo_1.fields = {
 	pf_ind_sys_1,
 	pf_ind_emerg_1,
 	pf_ind_immin_1,
-	pf_ssrc_1,
+	pf_audio_ssrc_1,
+	pf_video_ssrc_1,
     pf_trackinfo_1,
     pf_ti_queueing_1,
     pf_ti_parttypelen_1,
@@ -407,7 +428,8 @@ mcvideo_1.fields = {
 	pf_msg_name_1,
 --	[17] = "Overriding ID",
 --	[18] = "Overridden ID",
-	pf_rxprio_1
+	pf_rxprio_1,
+	pf_functional_alias_1
 }
 
 mcvideo_2.fields = {
@@ -435,7 +457,8 @@ mcvideo_2.fields = {
 	pf_ind_sys_2,
 	pf_ind_emerg_2,
 	pf_ind_immin_2,
-	pf_ssrc_2,
+	pf_audio_ssrc_2,
+	pf_video_ssrc_2,
     pf_trackinfo_2,
     pf_ti_queueing_2,
     pf_ti_parttypelen_2,
@@ -484,7 +507,6 @@ local type_3    = Field.new("mcvideo_3.type")
  local grantedid_mcvideo_2 = Field.new("mcvideo_2.grantedid")
  local duration_mcvideo_2  = Field.new("mcvideo_2.duration")
  local rejphrase_mcvideo_2 = Field.new("mcvideo_2.rejphrase")
-
 
 function mcvideo_0.dissector(tvbuf,pktinfo,root)
 
@@ -610,7 +632,7 @@ function mcvideo_0.dissector(tvbuf,pktinfo,root)
             tree:add(pf_queue_prio_0, tvbuf:range(pos,1))
             pos = pos +1
 
-        elseif field_name == "Granted Party's Identity" then
+        elseif field_name == "User Id of the Transmitting User" then
             dprint2("============Granted Party's Identity")
             -- Get the field length (8 bits)
             local field_len = tvbuf:range(pos,1):le_uint()
@@ -722,14 +744,24 @@ function mcvideo_0.dissector(tvbuf,pktinfo,root)
             -- Consume the possible padding
             pos = pos + field_padding(pos, field_start, 2)
 		
-		elseif field_name == "SSRC" then
-			dprint2("============SSRC")
+		elseif field_name == "Audio SSRC of the Transmitting User" then
+			dprint2("============Audio SSRC of the Transmitting User")
 			-- Get the field length (8 bits) (it should be always 6)
 			local field_len = tvbuf:range(pos,1):le_uint()
 			pos = pos +1
 			
-			-- Add the SSRC to the tree (only 32 bits, the other 16 are spare) 
-			tree:add(pf_ssrc_0, tvbuf:range(pos,4))
+			-- Add the Audio SSRC to the tree (only 32 bits, the other 16 are spare)
+			tree:add(pf_audio_ssrc_0, tvbuf:range(pos,4))
+            pos = pos + field_len
+
+        elseif field_name == "Video SSRC of the Transmitting User" then
+            dprint2("============Video SSRC of the Transmitting User")
+            -- Get the field length (8 bits) (it should be always 6)
+            local field_len = tvbuf:range(pos,1):le_uint()
+            pos = pos +1
+
+            -- Add the Video SSRC to the tree (only 32 bits, the other 16 are spare)
+            tree:add(pf_video_ssrc_0, tvbuf:range(pos,4))
             pos = pos + field_len
 		
         elseif field_name == "Track Info" then
@@ -797,9 +829,23 @@ function mcvideo_0.dissector(tvbuf,pktinfo,root)
             tree:add(pf_rxprio_0, tvbuf:range(pos,1))
 
             pos = pos + field_len
+
+        elseif field_name == "Functional Alias field ID" then
+            dprint2("============Functional Alias field ID")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos,1):le_uint()
+            pos = pos +1
+
+            -- Add the Functional Alias to the tree
+            local field_start = pos
+            tree:add(pf_functional_alias_0, tvbuf:range(pos,field_len))
+            pos = pos + field_len
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, field_start, 2)
+
 		end
         pktlen_remaining = pktlen - pos
-
     end
 
 
@@ -933,7 +979,7 @@ function mcvideo_1.dissector(tvbuf,pktinfo,root)
             tree:add(pf_queue_prio_1, tvbuf:range(pos,1))
             pos = pos +1
 
-        elseif field_name == "Granted Party's Identity" then
+        elseif field_name == "User Id of the Transmitting User" then
             dprint2("============Granted Party's Identity")
             -- Get the field length (8 bits)
             local field_len = tvbuf:range(pos,1):le_uint()
@@ -1045,14 +1091,24 @@ function mcvideo_1.dissector(tvbuf,pktinfo,root)
             -- Consume the possible padding
             pos = pos + field_padding(pos, field_start, 2)
 
-		elseif field_name == "SSRC" then
-			dprint2("============SSRC")
-			-- Get the field length (8 bits) (it should be always 6)
-			local field_len = tvbuf:range(pos,1):le_uint()
-			pos = pos +1
-			
-			-- Add the SSRC to the tree (only 32 bits, the other 16 are spare) 
-			tree:add(pf_ssrc_1, tvbuf:range(pos,4))
+		elseif field_name == "Audio SSRC of the Transmitting User" then
+            dprint2("============Audio SSRC of the Transmitting User")
+            -- Get the field length (8 bits) (it should be always 6)
+            local field_len = tvbuf:range(pos,1):le_uint()
+            pos = pos +1
+
+            -- Add the Audio SSRC to the tree (only 32 bits, the other 16 are spare)
+            tree:add(pf_audio_ssrc_1, tvbuf:range(pos,4))
+            pos = pos + field_len
+
+        elseif field_name == "Video SSRC of the Transmitting User" then
+            dprint2("============Video SSRC of the Transmitting User")
+            -- Get the field length (8 bits) (it should be always 6)
+            local field_len = tvbuf:range(pos,1):le_uint()
+            pos = pos +1
+
+            -- Add the Video SSRC to the tree (only 32 bits, the other 16 are spare)
+            tree:add(pf_video_ssrc_1, tvbuf:range(pos,4))
             pos = pos + field_len
 		
         elseif field_name == "Track Info" then
@@ -1120,7 +1176,22 @@ function mcvideo_1.dissector(tvbuf,pktinfo,root)
             tree:add(pf_rxprio_1, tvbuf:range(pos,1))
 
             pos = pos + field_len
-		end
+
+		elseif field_name == "Functional Alias field ID" then
+            dprint2("============Functional Alias field ID")
+            -- Get the field length (8 bits)
+            local field_len = tvbuf:range(pos,1):le_uint()
+            pos = pos +1
+
+            -- Add the Functional Alias to the tree
+            local field_start = pos
+            tree:add(pf_functional_alias_1, tvbuf:range(pos,field_len))
+            pos = pos + field_len
+
+            -- Consume the possible padding
+            pos = pos + field_padding(pos, field_start, 2)
+
+        end
         pktlen_remaining = pktlen - pos
 
     end
@@ -1157,6 +1228,8 @@ function mcvideo_2.dissector(tvbuf,pktinfo,root)
     -- We have parsed all the fixed order header
     local pos = FIXED_HEADER_LEN
     local pktlen_remaining = pktlen - pos
+
+    local last_message_name = "MCV2"
 
     while pktlen_remaining > 0 do
         dprint2("PKT remaining: ", pktlen_remaining)
@@ -1251,7 +1324,7 @@ function mcvideo_2.dissector(tvbuf,pktinfo,root)
             tree:add(pf_queue_prio_2, tvbuf:range(pos,1))
             pos = pos +1
 
-        elseif field_name == "Granted Party's Identity" then
+        elseif field_name == "User Id of the Transmitting User" then
             dprint2("============Granted Party's Identity")
             -- Get the field length (8 bits)
             local field_len = tvbuf:range(pos,1):le_uint()
@@ -1328,8 +1401,14 @@ function mcvideo_2.dissector(tvbuf,pktinfo,root)
             local field_len = tvbuf:range(pos,1):uint()
             pos = pos +1
 
-            -- Add the Permission to Request the Floor to the tree
-            tree:add(pf_msg_type_2, tvbuf:range(pos,field_len))
+            -- The ACK Message Type should look at the message name you're acknowledging
+            if last_message_name == "MCV0" then
+                tree:add(pf_msg_type_0, tvbuf:range(pos,field_len))
+            elseif last_message_name == "MCV1" then
+                tree:add(pf_msg_type_1, tvbuf:range(pos,field_len))
+            else
+                tree:add(pf_msg_type_2, tvbuf:range(pos,field_len))
+            end
             pos = pos + field_len
 
         elseif field_name == "Transmission Indicator" then
@@ -1363,14 +1442,24 @@ function mcvideo_2.dissector(tvbuf,pktinfo,root)
             -- Consume the possible padding
             pos = pos + field_padding(pos, field_start, 2)
 		
-		elseif field_name == "SSRC" then
-			dprint2("============SSRC")
-			-- Get the field length (8 bits) (it should be always 6)
-			local field_len = tvbuf:range(pos,1):le_uint()
-			pos = pos +1
-			
-			-- Add the SSRC to the tree (only 32 bits, the other 16 are spare) 
-			tree:add(pf_ssrc_2, tvbuf:range(pos,4))
+		elseif field_name == "Audio SSRC of the Transmitting User" then
+            dprint2("============Audio SSRC of the Transmitting User")
+            -- Get the field length (8 bits) (it should be always 6)
+            local field_len = tvbuf:range(pos,1):le_uint()
+            pos = pos +1
+
+            -- Add the Audio SSRC to the tree (only 32 bits, the other 16 are spare)
+            tree:add(pf_audio_ssrc_2, tvbuf:range(pos,4))
+            pos = pos + field_len
+
+        elseif field_name == "Video SSRC of the Transmitting User" then
+            dprint2("============Video SSRC of the Transmitting User")
+            -- Get the field length (8 bits) (it should be always 6)
+            local field_len = tvbuf:range(pos,1):le_uint()
+            pos = pos +1
+
+            -- Add the Video SSRC to the tree (only 32 bits, the other 16 are spare)
+            tree:add(pf_video_ssrc_2, tvbuf:range(pos,4))
             pos = pos + field_len
 		
         elseif field_name == "Track Info" then
@@ -1419,12 +1508,15 @@ function mcvideo_2.dissector(tvbuf,pktinfo,root)
 		elseif field_name == "Message Name" then
 			dprint2("============Message Name")
 			-- Get the field length (8 bits)
-			local field_len = tvbuf:range(pos,1):le_uint()
+			local field_len = tvbuf:range(pos, 1):le_uint()
 			pos = pos +1
 			
 			-- Add the Message Name to the tree (only 32 bits, the other 16 are spare) 
-			tree:add(pf_msg_name_2, tvbuf:range(pos,4))
+			tree:add(pf_msg_name_2, tvbuf:range(pos, 4))
+			last_message_name = tvbuf:range(pos, 4):string()
             pos = pos + field_len
+
+            dprint2("Last Message Name: " .. last_message_name)
 			
 		elseif field_name == "Reception Priority" then
             dprint2("============RX PRIO")
@@ -1445,7 +1537,7 @@ function mcvideo_2.dissector(tvbuf,pktinfo,root)
     end
 
 
-    dprint2("mcvideo_0.dissector returning",pos)
+    dprint2("mcvideo_2.dissector returning",pos)
 
     -- tell wireshark how much of tvbuff we dissected
     return pos
@@ -1526,8 +1618,8 @@ function mcvideo_3.dissector(tvbuf, pktinfo, root)
             -- Consume the possible padding
             pos = pos + field_padding(pos, field_start, 2)
 
-        elseif field_name == "Subchannel" then
-            dprint2("============Subchannel")
+        elseif field_name == "MBMS Subchannel" then
+            dprint2("============MBMS Subchannel")
             -- Get the field length (8 bits)
             local field_len = tvbuf:range(pos, 1):le_uint()
             pos = pos + 1
