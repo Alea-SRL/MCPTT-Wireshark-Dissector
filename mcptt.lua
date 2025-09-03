@@ -69,8 +69,7 @@ local mcptt = Proto("mcptt", "Mission Critical PTT Protocol Floor Control")
 local mcptt_pc = Proto("mcpc", "Mission Critical PTT Protocol Pre-established session call control")
 local mcptt_cp = Proto("mcmc", "Mission Critical MBMS subchannel Control Protocol")
 
--- 3GPP TS 24.380 version 13.0.2 Release 13
--- with 3GPP TS 24.380 version 13.3.0 Release 13 changes to field codes
+-- 3GPP TS 24.380 version 18.6.0
 -- Table 8.2.3.1-2: Floor control specific fields
 local field_codes = {
     [0] = "Floor Priority",
@@ -87,13 +86,17 @@ local field_codes = {
     [11] = "Track Info",
     [12] = "Message Type",
     [13] = "Floor Indicator",
-    [14] = "SSRC",
+    [14] = "Audio SSRC of Granted Participant",
     [15] = "List of Granted Users",
     [16] = "List of SSRCs",
     [17] = "Functional Alias",
     [18] = "List of Functional Aliases",
     [19] = "Location",
     [20] = "List of Locations",
+    [21] = "Queued Floor Requests Purpose",
+    [22] = "List of Queued Users",
+    [23] = "Response State",
+    [24] = "Media Flow Control Indicator",
     [102] = "Floor Priority",
     [103] = "Duration",
     [104] = "Reject Cause",
@@ -110,7 +113,7 @@ local field_codes = {
     [116] = "Floor Indicator"
 }
 
--- 3GPP TS 24.380 version 13.0.2 Release 13
+-- 3GPP TS 24.380 version 18.6.0
 -- Table 8.3.3.1-2: Pre-established session call control fields
 local field_codes_pc = {
     [0] = "Media Streams",
@@ -119,11 +122,14 @@ local field_codes_pc = {
     [3] = "MCPTT Group Identity",
     [4] = "Answer State",
     [5] = "Inviting MCPTT User Identity",
-    [6] = "Reason Code"
+    [6] = "Reason Code",
+    [7] = "Reason Cause",
+    [8] = "Invited MCPTT User Identity",
+    [192] = "PCK I_MESSAGE"
 }
 
--- 3GPP TS 24.380 version 13.0.2 Release 13
--- Table 8.2.2-1: Floor control specific messages
+-- 3GPP TS 24.380 version 18.6.0
+-- Table 8.2.2.1-1: Floor control specific messages
 local type_codes = {
     [0] = "Floor Request",
     [1] = "Floor Granted",
@@ -135,10 +141,12 @@ local type_codes = {
     [8] = "Floor Queue Position Request",
     [9] = "Floor Queue Position Info",
     [10] = "Floor Ack",
-    [15] = "Floor Release Multi Talker"
+    [11] = "Unicast Media Flow Control",
+    [16] = "Queued Floor Requests",
+    [17] = "Floor Release Multi Talker"
 }
 
--- 3GPP TS 24.380 version 13.0.2 Release 13
+-- 3GPP TS 24.380 version 18.6.0
 -- Table 8.3.2-1: Pre-established session call control specific messages
 local type_codes_pc = {
     [0] = "Connect",
@@ -151,6 +159,7 @@ local ack_code = {
     [1] = "ACK Required",
 }
 
+-- 3GPP TS 24.380 version 18.6.0
 -- Table 8.2.3.12-1: Source field coding
 local source_code = {
     [0] = "Floor Participant",
@@ -159,6 +168,7 @@ local source_code = {
     [3] = "Non-Controlling MCPTT Function"
 }
 
+-- 3GPP TS 24.380 version 18.6.0
 -- 8.2.6.2 Rejection cause codes and rejection cause phrase
 local reject_cause = {
     [1] = "Another MCPTT client has permission",
@@ -171,6 +181,7 @@ local reject_cause = {
     [255] = "Other reason"
 }
 
+-- 3GPP TS 24.380 version 18.6.0
 -- 8.2.10.2 Floor revoke cause codes and revoke cause phrases
 local revoke_cause = {
     [1] = "Only one MCPTT client",
@@ -181,7 +192,7 @@ local revoke_cause = {
     [255] = "Other reason"
 }
 
--- 3GPP TS 24.380 version 13.0.2 Release 13
+-- 3GPP TS 24.380 version 18.6.0
 -- 8.3.3.3 MCPTT Session Identity field
 local session_type = {
     [0] = "No type",
@@ -190,45 +201,51 @@ local session_type = {
     [4] = "Chat"
 }
 
--- 3GPP TS 24.380 version 13.0.2 Release 13
+-- 3GPP TS 24.380 version 18.6.0
 -- 8.3.3.6 Answer State field
 local answer_state = {
     [0] = "Unconfirmed",
     [1] = "Confirmed"
 }
 
--- 3GPP TS 24.380 version 13.0.2 Release 13
+-- 3GPP TS 24.380 version 18.6.0
 -- 8.3.3.8 Reason Code field
 local reason_code = {
     [0] = "Accepted",
     [1] = "Busy",
-    [2] = "Not Accepted"
+    [2] = "Not Accepted",
+    [3] = "Authentication of the MIKEY-SAKKE I_MESSAGE failed",
+    [4] = "Integrity protection check failed",
+    [5] = "Decrypting XML content failed "
 }
 
--- 3GPP TS 24.380 version 13.2.0 Release 13
+-- 3GPP TS 24.380 version 18.6.0
 -- Table 8.4.2-1: MBMS subchannel control protocol messages
 local type_codes_cp = {
     [0] = "Map Group To Bearer",
-    [1] = "Unmap Group To Bearer"
+    [1] = "Unmap Group To Bearer",
+    [2] = "Application Paging",
+    [3] = "Bearer Announcement"
 }
 
--- 3GPP TS 24.380 version 13.2.0 Release 13
--- with TS 24.380 version 13.3.0 Release 13 changes
+-- 3GPP TS 24.380 version 18.6.0
 -- Table 8.4.3.1-2: MBMS subchannel control protocol specific fields
 local field_codes_cp = {
-    [0] = "Subchannel",
+    [0] = "MBMS Subchannel",
     [1] = "TMGI",
     [2] = "MCPTT Group ID",
-    [3] = "MCPTT Group ID"
+    [3] = "Monitoring State"
 }
 
--- 3GPP TS 24.380 version 13.2.0 Release 13
+-- 3GPP TS 24.380 version 18.6.0
 -- 8.4.3.3 MBMS Subchannel field
 local ip_version = {
     [0] = "IP version 4",
     [1] = "IP version 6"
 }
 
+-- 3GPP TS 24.380 version 18.6.0
+-- Table 8.2.3.21-3: Location type
 local location_type = {
 	[0] = "Not provided",
 	[1] = "ECGI",
@@ -236,7 +253,8 @@ local location_type = {
 	[3] = "PLMN ID",
 	[4] = "MBMS Service Area",
 	[5] = "MBSFN Area ID",
-	[6] = "Geographic coordinates"
+	[6] = "Geographic coordinates",
+	[7] = "Altitude"
 }
 
 local pf_type           = ProtoField.new ("Message type", "mcptt.type", ftypes.UINT8, type_codes, base.DEC, 0x0F)
@@ -271,7 +289,7 @@ local pf_ind_dual       = ProtoField.new ("Dual floor", "mcptt.dual", ftypes.UIN
 local pf_ind_temporary  = ProtoField.new ("Temporary group", "mcptt.temporary", ftypes.UINT16, nil, base.DEC, 0x0100)
 local pf_ind_multi      = ProtoField.new ("Multi-talker", "mcptt.multi", ftypes.UINT16, nil, base.DEC, 0x0080)
 
-local pf_ssrc           = ProtoField.new ("SSRC", "mcptt.ssrc", ftypes.UINT32, nil, base.HEX)
+local pf_ssrc           = ProtoField.new ("Audio SSRC", "mcptt.ssrc", ftypes.UINT32, nil, base.HEX)
 
 local pf_trackinfo      = ProtoField.new ("Track Info", "mcptt.trackinfo", ftypes.NONE)
 local pf_ti_queueing    = ProtoField.new ("Queueing capability", "mcptt.queueingcapability", ftypes.BOOLEAN)
@@ -676,8 +694,8 @@ function mcptt.dissector(tvbuf, pktinfo, root)
 
             -- Consume the possible padding
             pos = pos + field_padding(pos, field_start, 2)
-        elseif field_name == "SSRC" then
-            dprint2("============SSRC")
+        elseif field_name == "Audio SSRC of Granted Participant" then
+            dprint2("============Audio SSRC of Granted Participant")
             -- Get the field length (8 bits)
             local field_len = tvbuf:range(pos, 1):uint()
             pos = pos + 1
@@ -1120,8 +1138,8 @@ function mcptt_cp.dissector(tvbuf, pktinfo, root)
             -- Consume the possible padding
             pos = pos + field_padding(pos, field_start, 2)
 
-        elseif field_name == "Subchannel" then
-            dprint2("============Subchannel")
+        elseif field_name == "MBMS Subchannel" then
+            dprint2("============MBMS Subchannel")
             -- Get the field length (8 bits)
             local field_len = tvbuf:range(pos, 1):le_uint()
             pos = pos + 1
