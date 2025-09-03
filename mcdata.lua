@@ -31,6 +31,8 @@ local d = require('debug')
 
 mcdata_protocol = Proto("mcdata",  "mcdata SIP Dissector")
 
+-- 3GPP TS 24.282 version 18.11.0
+-- Table 15.2.2-1: Message types
 local IEI_codes = {
     [1] = "SDS SIGNALLING PAYLOAD",
     [2] = "FD SIGNALLING PAYLOAD",
@@ -44,9 +46,15 @@ local IEI_codes = {
     [11] = "DEFERRED LIST ACCESS REQUEST",
     [12] = "DEFERRED LIST ACCESS RESPONSE",
     [13] = "FD HTTP TERMINATION",
+    [17] = "GROUP EMERGENCY ALERT",
+    [18] = "GROUP EMERGENCY ALERT ACK",
+    [19] = "GROUP EMERGENCY ALERT CANCEL",
+    [20] = "GROUP EMERGENCY ALERT CANCEL ACK",
     [120] = "Payload"
 }
 
+-- 3GPP TS 24.282 version 18.11.0
+-- Table 15.2.3-1: SDS disposition request type
 local DispostionRequest_codes = {
     [0] = "NONE",
     [1] = "DELIVERY",
@@ -54,13 +62,19 @@ local DispostionRequest_codes = {
     [3] = "DELIVERY AND READ"
 }
 
+-- 3GPP TS 24.282 version 18.11.0
+-- Table 15.2.13-2:  Payload content type
 local PayloadContentType_codes = {
     [1] = "TEXT",
     [2] = "BINARY",
     [3] = "HYPERLINKS",
     [4] = "FILEURL",
     [5] = "LOCATION",
-    [6] = "ENHANCED STATUS"
+    [6] = "ENHANCED STATUS",
+    -- 7 = Value allocated for use in interworking
+    [8] = "LOCATION ALTITUDE",
+    [9] = "LOCATION TIMESTAMP",
+    [10] = "CODED TEXT"
 }
 
 IEI = ProtoField.int8("mcdata.iei", "IEI", base.DEC, IEI_codes)

@@ -142,8 +142,8 @@ local type_codes = {
     [9] = "Floor Queue Position Info",
     [10] = "Floor Ack",
     [11] = "Unicast Media Flow Control",
-    [16] = "Queued Floor Requests",
-    [17] = "Floor Release Multi Talker"
+    [14] = "Queued Floor Requests",
+    [15] = "Floor Release Multi Talker"
 }
 
 -- 3GPP TS 24.380 version 18.6.0
