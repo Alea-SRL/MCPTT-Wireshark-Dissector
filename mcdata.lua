@@ -63,6 +63,18 @@ local DispostionRequest_codes = {
 }
 
 -- 3GPP TS 24.282 version 18.11.0
+-- Table 15.2.4-1: FD disposition request type
+local DispostionRequestFD_codes = {
+    [1] = "FILE DOWNLOAD COMPLETED UPDATE"
+}
+
+-- 3GPP TS 24.282 version 18.11.0
+-- Table 15.2.16-1: Mandatory download
+local MandatoryDownload_codes = {
+    [1] = "MANDATORY DOWNLOAD"
+}
+
+-- 3GPP TS 24.282 version 18.11.0
 -- Table 15.2.13-2:  Payload content type
 local PayloadContentType_codes = {
     [1] = "TEXT",
@@ -87,8 +99,11 @@ PayloadsCount = ProtoField.uint8("mcdata.payload.count", "Number of payloads", b
 PayloadsTotalSize = ProtoField.uint16("mcdata.payload.TotalSize", "Length of Payload contents", base.DEC)
 PayloadsContentType = ProtoField.uint8("mcdata.payload.contenttype", "Payload content type", base.DEC, PayloadContentType_codes)
 PayloadsContentText = ProtoField.string("mcdata.payload.contentstring", "Payload content type string")
+PayloadsContentURL = ProtoField.string("mcdata.payload.contenturl", "Payload content type url")
+DispostionRequestFD = ProtoField.uint8("mcdata.dispositionrequesttypefd", "Disposition Request Type FD", base.DEC, DispostionRequestFD_codes, 128)
+MandatoryDownload = ProtoField.uint8("mcdata.mandatorydownload", "Mandatory Download", base.DEC, MandatoryDownload_codes, 128)
 
-mcdata_protocol.fields = {IEI,DateTime_i,DateTime,conversation_id,message_id,DispostionRequest, PayloadsCount,PayloadsTotalSize,PayloadsContentType,PayloadsContentText}
+mcdata_protocol.fields = {IEI,DateTime_i,DateTime,conversation_id,message_id,DispostionRequest,DispostionRequestFD, PayloadsCount,PayloadsTotalSize,PayloadsContentType,PayloadsContentText,PayloadsContentURL,MandatoryDownload}
 
 function mcdata_protocol.dissector(buffer, pinfo, tree)
 	length = buffer:len()
@@ -100,17 +115,51 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
 
 	local subtree = tree:add(mcdata_protocol, buffer(), "MCDATA Talkway")
 
-	local IEI_number =  buffer(0,1):uint()
+	local IEI_number = buffer(0,1):uint()
 
 	subtree:add(IEI, buffer(0,1))
 
 	if IEI_number > 0 and IEI_number < 12 then
-		if IEI_number == 1 then		
+		if IEI_number == 1 then
 			subtree:add(DateTime_i, buffer(1,5))
 			subtree:add(DateTime, buffer(1,5), CalculateNSTime(buffer(1, 5)))
 			subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(6, 16)))))
 			subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(22, 16)))))
 			subtree:add(DispostionRequest, buffer(38,1))
+
+        elseif IEI_number == 2 then
+            subtree:add(DateTime_i, buffer(1,5))
+            subtree:add(DateTime, buffer(1,5), CalculateNSTime(buffer(1, 5)))
+            subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(6, 16)))))
+            subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(22, 16)))))
+            subtree:add_le(DispostionRequestFD, buffer(38,1))
+            subtree:add_le(MandatoryDownload, buffer(39,1))
+
+            local PayloadsTotalSize_number = 0
+            local IEI_Payload_number =  buffer(40,1):le_uint()
+
+            if IEI_Payload_number == 120 then
+                subtree:add(PayloadsTotalSize, buffer(41,2))
+                PayloadsTotalSize_number =  buffer(41,2):int()
+                local payloadsubtree = subtree:add(mcdata_protocol, buffer(), "Payload")
+                local payload_type =  buffer(5,1):le_uint()
+                payloadsubtree:add(PayloadsContentType, buffer(5,1))
+                if payload_type == 4 then
+                    payloadsubtree:add(PayloadsContentURL, buffer(6, PayloadsTotalSize_number))
+                end
+            end
+
+            local offset = 43 + 5 + PayloadsTotalSize_number-1
+            IEI_Payload_number =  buffer(offset, 1):le_uint()
+
+            if IEI_Payload_number == 121 then
+                offset = offset + 1
+                subtree:add(PayloadsTotalSize, buffer(offset, 2))
+                PayloadsTotalSize_number =  buffer(offset, 2):int()
+                local metadatasubtree = subtree:add(mcdata_protocol, buffer(), "Metadata")
+                metadatasubtree:add(PayloadsContentText, buffer(4,PayloadsTotalSize_number-1))
+            end
+
 		elseif IEI_number == 3 then
 			subtree:add(PayloadsCount, buffer(1,1))
 			subtree:add(IEI, buffer(2,1))
@@ -131,6 +180,7 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
 					end
 				end
 			end
+
 		elseif IEI_number == 5 then		
 			subtree:add(DispostionRequest, buffer(1,1))
 			subtree:add(DateTime, buffer(2,5), CalculateNSTime(buffer(2, 5)))
