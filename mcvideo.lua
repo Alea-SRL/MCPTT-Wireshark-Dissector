@@ -26,7 +26,7 @@
 -- OVERVIEW:
 -- This script provides a dissector for the Mission Critical VIDEO (MCVIDEO) defined by the 3GPP in the TS 24.581.
 
-dofile(persconffile_path('plugins') .. "/mc-common.lua")
+require("mc-common")
 
 -- do not modify this table
 local debug_level = {

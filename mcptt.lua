@@ -27,7 +27,7 @@
 -- OVERVIEW:
 -- This script provides a dissector for the Mission Critical Push To Talk (MCPTT) defined by the 3GPP in the TS 24.380.
 
-dofile(persconffile_path('plugins') .. "/mc-common.lua")
+require("mc-common")
 
 -- do not modify this table
 local debug_level = {
