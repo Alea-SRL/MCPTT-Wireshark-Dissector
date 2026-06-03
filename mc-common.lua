@@ -101,3 +101,21 @@ function field_padding(pos, field_start, minus)
         return 0
     end
 end
+
+function CalculateNSTime(secs_bytes)
+	-- gets the seconds as a Lua number
+	-- P.S. le = little endian, the mcdata packet is encoded in big endian
+	local secs = secs_bytes:uint64():tonumber()
+	local nstime = NSTime.new(secs, 0)
+
+	return nstime
+end
+
+function AddStringWithLength(buffer, subtree, string_descriptor, starting_offset)
+    offset = starting_offset
+    local string_length = buffer(offset, 2):uint()
+    offset = offset + 2
+    subtree:add(string_descriptor, buffer(offset, string_length))
+    offset = offset + string_length
+    return offset
+end
