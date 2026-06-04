@@ -208,22 +208,11 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
 				end
 			end
 
-		elseif IEI_number == 5  or IEI_number == 8 then
+		elseif IEI_number == 5 then
 			subtree:add(DispositionRequest, buffer(1, 1))
 			subtree:add(DateTime, buffer(2,5), CalculateNSTime(buffer(2, 5))):append_text(" (" .. buffer(2, 5):uint64() .. ")")
 			subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(7, 16)))))
 			subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(23, 16)))))
-			offset = 39
-			while offset < length do
-                local IEI = buffer(offset, 1):uint()
-                offset = offset + 1
-                if IEI == 34 then -- APPLICATION ID
-                    subtree:add(application_id, buffer(offset, 16))
-                    offset = offset + 16
-                elseif IEI == 125 then -- EXTENDED APPLICATION ID
-                    offset = AddStringWithLength(buffer, subtree, extended_application_id, offset)
-                end
-            end
 
         elseif IEI_number == 7 then
             subtree:add(DateTime, buffer(1,5), CalculateNSTime(buffer(1, 5))):append_text(" (" .. buffer(1, 5):uint64() .. ")")
@@ -258,6 +247,24 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
                     offset = AddStringWithLength(buffer, subtree, extended_application_id, offset)
                 end
             end
+
+        elseif IEI_number == 8
+            subtree:add(DispositionRequest, buffer(1, 1))
+            subtree:add(DateTime, buffer(2,5), CalculateNSTime(buffer(2, 5))):append_text(" (" .. buffer(2, 5):uint64() .. ")")
+            subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(7, 16)))))
+            subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(23, 16)))))
+            local offset = AddStringWithLength(buffer, subtree, sender_id, 39)
+            while offset < length do
+                local IEI = buffer(offset, 1):uint()
+                offset = offset + 1
+                if IEI == 34 then -- APPLICATION ID
+                    subtree:add(application_id, buffer(offset, 16))
+                    offset = offset + 16
+                elseif IEI == 125 then -- EXTENDED APPLICATION ID
+                    offset = AddStringWithLength(buffer, subtree, extended_application_id, offset)
+                end
+            end
+
 		end
 	end
 end
