@@ -216,7 +216,6 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
 
         elseif IEI_number == 7 then
             subtree:add(DateTime, buffer(1,5), CalculateNSTime(buffer(1, 5))):append_text(" (" .. buffer(1, 5):uint64() .. ")")
-            local num_payloads = buffer(6, 1):uint()
             subtree:add(PayloadsCount, buffer(6, 1))
             subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(7, 16)))))
             subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(23, 16)))))
@@ -240,15 +239,20 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
                 elseif IEI == 124 then -- RECIPIENT MDATA USER ID
                     offset = AddStringWithLength(buffer, subtree, recipient_id, offset)
                 elseif IEI == 120 then -- PAYLOAD
-                    for i=1,num_payloads do
-                        offset = AddStringWithLength(buffer, subtree, PayloadsContentText, offset)
+                    local payload_length =  buffer(offset, 2):uint() - 1
+                    offset = offset + 2
+                    local payload_type = buffer(offset, 1):uint()
+                    offset = offset + 1
+                    if payload_type == 1 then -- TEXT PAYLOAD
+                        subtree:add(PayloadsContentText, buffer(offset, payload_length))
                     end
+                    offset = offset + payload_length
                 elseif IEI == 125 then -- EXTENDED APPLICATION ID
                     offset = AddStringWithLength(buffer, subtree, extended_application_id, offset)
                 end
             end
 
-        elseif IEI_number == 8
+        elseif IEI_number == 8 then
             subtree:add(DispositionRequest, buffer(1, 1))
             subtree:add(DateTime, buffer(2,5), CalculateNSTime(buffer(2, 5))):append_text(" (" .. buffer(2, 5):uint64() .. ")")
             subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(7, 16)))))
