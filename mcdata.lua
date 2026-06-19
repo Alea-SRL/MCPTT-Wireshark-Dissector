@@ -140,25 +140,49 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
 
 	local subtree = tree:add(mcdata_protocol, buffer(), "MCDATA Talkway")
 
-	local IEI_number = buffer(0,1):uint()
+	local pos = 0
 
-	subtree:add(IEI, buffer(0,1))
+	local IEI_buf = buffer(pos, 1)
+	local IEI_number = IEI_buf:uint()
+	subtree:add(IEI, IEI_buf, IEI_number)
+	pos = pos + 1
 
 	if IEI_number > 0 and IEI_number < 12 then
 		if IEI_number == 1 then
-			subtree:add(DateTime_i, buffer(1,5))
-			subtree:add(DateTime, buffer(1,5), CalculateNSTime(buffer(1, 5)))
-			subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(6, 16)))))
-			subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(22, 16)))))
-			local disposition_type = bit32.band(buffer(38, 1):uint(), 0x0F)
-            -- aggiungo un valore "custom" (il buffer serve a Wireshark per fare l'highlight)
-            subtree:add_packet_field(DispositionRequest, buffer(38, 1), disposition_type)
+			local datetime_buf = buffer(pos, 5)
+			subtree:add(DateTime, datetime_buf, CalculateNSTime(datetime_buf)):append_text(" (" .. datetime_buf:uint64() .. ")")
+			pos = pos + 5
+			
+			local conversation_id_buf = buffer(pos, 16)
+			subtree:add(conversation_id, conversation_id_buf, FormatUUID(conversation_id_buf:bytes():tohex()))
+			pos = pos + 16
+			
+			local message_id_buf = buffer(pos, 16)
+			subtree:add(message_id, message_id_buf, FormatUUID(message_id_buf:bytes():tohex()))
+			pos = pos + 16
+			
+			local disposition_type_buf = buffer(pos, 1)
+			subtree:add_packet_field(DispositionRequest, disposition_type_buf, bit.band(disposition_type_buf:uint(), 0x0F))
+			pos = pos + 1
+			
 
         elseif IEI_number == 2 then
-            subtree:add(DateTime_i, buffer(1,5))
-            subtree:add(DateTime, buffer(1,5), CalculateNSTime(buffer(1, 5)))
-            subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(6, 16)))))
-            subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(22, 16)))))
+			local datetime_buf = buffer(pos, 5)
+			subtree:add(DateTime, datetime_buf, CalculateNSTime(datetime_buf)):append_text(" (" .. datetime_buf:uint64() .. ")")
+			pos = pos + 5
+			
+			local conversation_id_buf = buffer(pos, 16)
+			subtree:add(conversation_id, conversation_id_buf, FormatUUID(conversation_id_buf:bytes():tohex()))
+			pos = pos + 16
+			
+			local message_id_buf = buffer(pos, 16)
+			subtree:add(message_id, message_id_buf, FormatUUID(message_id_buf:bytes():tohex()))
+			pos = pos + 16
+			
+			local disposition_type_buf = buffer(pos, 1)
+			subtree:add_packet_field(DispositionRequest, disposition_type_buf, bit.band(disposition_type_buf:uint(), 0x0F))
+			pos = pos + 1
+            
             subtree:add_le(DispositionRequestFD, buffer(38,1))
             subtree:add_le(MandatoryDownload, buffer(39,1))
 
@@ -188,31 +212,54 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
             end
 
 		elseif IEI_number == 3 then
-			subtree:add(PayloadsCount, buffer(1,1))
-			subtree:add(IEI, buffer(2,1))
-		  
-			local IEI_Payload_number =  buffer(2,1):uint()
-			local PayloadsCount_number =  buffer(1,1):uint()
-			
-	  		if IEI_Payload_number == 120 then
-				subtree:add(PayloadsTotalSize, buffer(3,2))
-				local PayloadsTotalSize_number =  buffer(3,2):int()
-			
-				for i=1,PayloadsCount_number do
-					local payloadsubtree = subtree:add(mcdata_protocol, buffer(), "Payload")
-					local payload_type =  buffer(5, 1):uint()
-					payloadsubtree:add(PayloadsContentType, buffer(5, 1))
-					if payload_type == 1 then
-						payloadsubtree:add(PayloadsContentText, buffer(6, PayloadsTotalSize_number - 1))
-					end
-				end
-			end
+			local payloadscount_buf = buffer(pos, 1)
+			local payloadscount_num = payloadscount_buf:uint()
+			subtree:add(PayloadsCount, payloadscount_buf)
+			pos = pos + 1
+
+            for i = 1, payloadscount_num do
+
+                local payloadsubtree = subtree:add(mcdata_protocol, buffer(pos, buffer:len() - pos), "Payload")
+                
+                local payload_iei_buf = buffer(pos, 1)
+                local payload_iei_num = payload_iei_buf:uint()
+                payloadsubtree:add(IEI, payload_iei_buf)
+                pos = pos + 1
+
+                local payload_len_buf = buffer(pos, 2)
+                local payload_len_num = payload_len_buf:uint()
+                payloadsubtree:add(PayloadsTotalSize, payload_len_buf)
+                pos = pos + 2
+
+                local payload_type_buf = buffer(pos, 1)
+                local payload_type_num = payload_type_buf:uint()
+                payloadsubtree:add(PayloadsContentType, payload_type_buf)
+                pos = pos + 1
+
+                if payload_type_num == 1 then
+                    local payload_content_buf = buffer(pos, payload_len_num - 1)
+                    payloadsubtree:add(PayloadsContentText, payload_content_buf)
+                    pos = pos + payload_len_num - 1
+                end
+
+            end
 
 		elseif IEI_number == 5 then
-			subtree:add(DispositionRequest, buffer(1, 1))
-			subtree:add(DateTime, buffer(2,5), CalculateNSTime(buffer(2, 5))):append_text(" (" .. buffer(2, 5):uint64() .. ")")
-			subtree:add(conversation_id, FormatUUID(string.upper(tostring(buffer(7, 16)))))
-			subtree:add(message_id, FormatUUID(string.upper(tostring(buffer(23, 16)))))
+			local dispositionrequest_buf = buffer(pos, 1)
+			subtree:add(DispositionRequest, dispositionrequest_buf)
+			pos = pos + 1
+			
+			local datetime_buf = buffer(pos, 5)
+			subtree:add(DateTime, datetime_buf, CalculateNSTime(datetime_buf)):append_text(" (" .. datetime_buf:uint64() .. ")")
+			pos = pos + 5
+			
+			local conversation_id_buf = buffer(pos, 16)
+			subtree:add(conversation_id, conversation_id_buf, FormatUUID(conversation_id_buf:bytes():tohex()))
+			pos = pos + 16
+			
+			local message_id_buf = buffer(pos, 16)
+			subtree:add(message_id, message_id_buf, FormatUUID(message_id_buf:bytes():tohex()))
+			pos = pos + 16
 
         elseif IEI_number == 7 then
             subtree:add(DateTime, buffer(1,5), CalculateNSTime(buffer(1, 5))):append_text(" (" .. buffer(1, 5):uint64() .. ")")
