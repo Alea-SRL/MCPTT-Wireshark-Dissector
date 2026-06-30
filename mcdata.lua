@@ -240,7 +240,7 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
 
 	local msg_type_buf = buffer(pos, 1)
 	local msg_type_number = msg_type_buf:uint()
-	local msg_type_most_significant_bit = bit32.band(msg_type_number, 0x40)
+	local msg_type_most_significant_bit = bit.band(msg_type_number, 0x40)
 	if msg_type_most_significant_bit == 0 then -- for protected messages, the message type will be added by the function "AppendSecurityParametersAndPayload"
 	    subtree:add(MessageType, msg_type_buf)
 	end
@@ -347,7 +347,7 @@ function AppendOptionalIEIs(buffer, subtree, pos, off_network)
 
     while pos < length do
         local internal_IEI = buffer(pos, 1):uint()
-        local internal_IEI_upper_bits = bit32.band(internal_IEI, 0xF0) -- extract the first 4 bits of the byte
+        local internal_IEI_upper_bits = bit.band(internal_IEI, 0xF0) -- extract the first 4 bits of the byte
         pos = pos + 1
 
         local internal_IEI_text = ""
@@ -420,17 +420,17 @@ function AppendOptionalIEIs(buffer, subtree, pos, off_network)
             pos = AddStringWithLength(buffer, subtree, UserLocation, pos)
 
         elseif internal_IEI_text == "SDS disposition request type" then
-            local disposition_type = bit32.band(internal_IEI, 0x0F)
+            local disposition_type = bit.band(internal_IEI, 0x0F)
             -- aggiungo un valore "custom" (il buffer serve a Wireshark per fare l'highlight)
             subtree:add_packet_field(DispositionRequest, buffer(pos - 1, 1), disposition_type)
 
         elseif internal_IEI_text == "FD disposition request type" then
-            local disposition_type = bit32.band(internal_IEI, 0x0F)
+            local disposition_type = bit.band(internal_IEI, 0x0F)
             -- aggiungo un valore "custom" (il buffer serve a Wireshark per fare l'highlight)
             subtree:add_packet_field(DispositionRequestFD, buffer(pos - 1, 1), disposition_type)
 
         elseif internal_IEI_text == "Mandatory download" then
-            local mandatory_download = bit32.band(internal_IEI, 0x0F)
+            local mandatory_download = bit.band(internal_IEI, 0x0F)
             -- aggiungo un valore "custom" (il buffer serve a Wireshark per fare l'highlight)
             subtree:add_packet_field(MandatoryDownload, buffer(pos - 1, 1), mandatory_download)
 
