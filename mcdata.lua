@@ -144,10 +144,10 @@ MessageType                  = ProtoField.int8("mcdata.security_parameters_and_p
 DateTime                     = ProtoField.absolute_time("mcdata.datetime", "DateTime", base.LOCAL)
 ConversationID               = ProtoField.string("mcdata.conversation_id", "Conversation ID")
 MessageID                    = ProtoField.string("mcdata.message_id", "Message ID")
-DispositionRequest           = ProtoField.uint8("mcdata.disposition_request_type", "Disposition Request Type", base.DEC, DispositionRequest_codes)
+DispositionRequest           = ProtoField.uint8("mcdata.disposition_request_type", "Disposition Request Type", base.DEC, DispositionRequest_codes, 0x0F)
 PayloadsCount                = ProtoField.uint8("mcdata.payload.count", "Number of payloads", base.DEC)
-DispositionRequestFD         = ProtoField.uint8("mcdata.disposition_request_type_fd", "Disposition Request Type FD", base.DEC, DispositionRequestFD_codes)
-MandatoryDownload            = ProtoField.uint8("mcdata.mandatory_download", "Mandatory Download", base.DEC, MandatoryDownload_codes)
+DispositionRequestFD         = ProtoField.uint8("mcdata.disposition_request_type_fd", "Disposition Request Type FD", base.DEC, DispositionRequestFD_codes, 0x0F)
+MandatoryDownload            = ProtoField.uint8("mcdata.mandatory_download", "Mandatory Download", base.DEC, MandatoryDownload_codes, 0x0F)
 SenderID                     = ProtoField.string("mcdata.sender_id", "Sender ID")
 InReplyToMessageID           = ProtoField.string("mcdata.in_reply_to_message_id", "In Reply To Message ID")
 ApplicationID                = ProtoField.string("mcdata.application_id", "Application ID")
@@ -351,7 +351,7 @@ function AppendOptionalIEIs(buffer, subtree, pos, off_network)
         pos = pos + 1
 
         local internal_IEI_text = ""
-        if internal_IEI_upper_bits == 128 or internal_IEI_upper_bits == 160 then
+        if internal_IEI_upper_bits == 128 or internal_IEI_upper_bits == 144 or internal_IEI_upper_bits == 160 then
             internal_IEI_text = IEI_codes[internal_IEI_upper_bits]
         elseif internal_IEI >= 33 and internal_IEI <= 200 then
             internal_IEI_text = IEI_codes[internal_IEI]
