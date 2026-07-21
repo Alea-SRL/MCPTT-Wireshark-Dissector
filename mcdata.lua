@@ -104,10 +104,29 @@ local DispositionRequest_codes = {
     [3] = "DELIVERY AND READ"
 }
 
+-- 3GPP TS 24.282 version 18.13.0
+-- Table 15.2.5-1: SDS disposition notification type
+local DispositionNotification_codes = {
+    [1] = "UNDELIVERED",
+    [2] = "DELIVERED",
+    [3] = "READ",
+    [4] = "DELIVERED AND READ",
+    [5] = "DISPOSITION PREVENTED BY SYSTEM"
+}
+
 -- 3GPP TS 24.282 version 18.11.0
 -- Table 15.2.4-1: FD disposition request type
 local DispositionRequestFD_codes = {
     [1] = "FILE DOWNLOAD COMPLETED UPDATE"
+}
+
+-- 3GPP TS 24.282 version 18.13.0
+-- Table 15.2.6-1: FD disposition request type
+local DispositionNotificationFD_codes = {
+    [1] = "FILE DOWNLOAD REQUEST ACCEPTED",
+    [2] = "FILE DOWNLOAD REQUEST REJECTED",
+    [3] = "FILE DOWNLOAD COMPLETED",
+    [4] = "FILE DOWNLOAD DEFERRED"
 }
 
 -- 3GPP TS 24.282 version 18.11.0
@@ -145,8 +164,10 @@ DateTime                     = ProtoField.absolute_time("mcdata.datetime", "Date
 ConversationID               = ProtoField.string("mcdata.conversation_id", "Conversation ID")
 MessageID                    = ProtoField.string("mcdata.message_id", "Message ID")
 DispositionRequest           = ProtoField.uint8("mcdata.disposition_request_type", "Disposition Request Type", base.DEC, DispositionRequest_codes, 0x0F)
+DispositionNotification      = ProtoField.uint8("mcdata.disposition_notification_type", "Disposition Notification Type", base.DEC, DispositionNotification_codes, 0x0F)
 PayloadsCount                = ProtoField.uint8("mcdata.payload.count", "Number of payloads", base.DEC)
 DispositionRequestFD         = ProtoField.uint8("mcdata.disposition_request_type_fd", "Disposition Request Type FD", base.DEC, DispositionRequestFD_codes, 0x0F)
+DispositionNotificationFD    = ProtoField.uint8("mcdata.disposition_notification_type_fd", "Disposition Notification Type FD", base.DEC, DispositionNotificationFD_codes, 0x0F)
 MandatoryDownload            = ProtoField.uint8("mcdata.mandatory_download", "Mandatory Download", base.DEC, MandatoryDownload_codes, 0x0F)
 SenderID                     = ProtoField.string("mcdata.sender_id", "Sender ID")
 InReplyToMessageID           = ProtoField.string("mcdata.in_reply_to_message_id", "In Reply To Message ID")
@@ -191,7 +212,9 @@ mcdata_protocol.fields = {
     ConversationID,
     MessageID,
     DispositionRequest,
+    DispositionNotification,
     DispositionRequestFD,
+    DispositionNotificationFD,
     PayloadsCount,
     MandatoryDownload,
     SenderID,
@@ -273,9 +296,13 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
 
         AppendOptionalIEIs(buffer, subtree, pos, false)
 
-    elseif msg_type_text == "SDS NOTIFICATION" then
-        local dispositionrequest_buf = buffer(pos, 1)
-        subtree:add(DispositionRequest, dispositionrequest_buf)
+    elseif msg_type_text == "SDS NOTIFICATION" or msg_type_text == "FD NOTIFICATION" then
+        local dispositionnotification_buf = buffer(pos, 1)
+        if msg_type_text == "SDS NOTIFICATION" then
+            subtree:add(DispositionNotification, dispositionnotification_buf)
+        else
+            subtree:add(DispositionNotificationFD, dispositionnotification_buf)
+        end
         pos = pos + 1
 
         local datetime_buf = buffer(pos, 5)
@@ -314,8 +341,8 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
         AppendOptionalIEIs(buffer, subtree, pos, true)
 
     elseif msg_type_text == "SDS OFF-NETWORK NOTIFICATION" then
-        local dispositionrequest_buf = buffer(pos, 1)
-        subtree:add(DispositionRequest, dispositionrequest_buf)
+        local dispositionnotification_buf = buffer(pos, 1)
+        subtree:add(DispositionNotification, dispositionnotification_buf)
         pos = pos + 1
 
         local datetime_buf = buffer(pos, 5)
