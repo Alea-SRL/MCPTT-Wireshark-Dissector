@@ -163,6 +163,7 @@ MessageType                  = ProtoField.int8("mcdata.security_parameters_and_p
 DateTime                     = ProtoField.absolute_time("mcdata.datetime", "DateTime", base.LOCAL)
 ConversationID               = ProtoField.string("mcdata.conversation_id", "Conversation ID")
 MessageID                    = ProtoField.string("mcdata.message_id", "Message ID")
+InformationElementID         = ProtoField.uint8("mcdata.iei", "IEI", base.DEC, IEI_codes)
 DispositionRequest           = ProtoField.uint8("mcdata.disposition_request_type", "Disposition Request Type", base.DEC, DispositionRequest_codes, 0x0F)
 DispositionNotification      = ProtoField.uint8("mcdata.disposition_notification_type", "Disposition Notification Type", base.DEC, DispositionNotification_codes, 0x0F)
 PayloadsCount                = ProtoField.uint8("mcdata.payload.count", "Number of payloads", base.DEC)
@@ -179,6 +180,8 @@ UserLocation                 = ProtoField.string("mcdata.user_location", "User L
 ApplicationMetadataContainer = ProtoField.string("mcdata.application_metadata_container", "Application Metadata Container")
 Metadata                     = ProtoField.string("mcdata.metadata", "Metadata")
 
+PayloadContentLength         = ProtoField.uint8("mcdata.payload.content_length", "Payload content length", base.DEC)
+PayloadContentType           = ProtoField.uint8("mcdata.payload.content_type", "Payload content type", base.DEC, PayloadContentType_codes)
 PayloadContentText           = ProtoField.string("mcdata.payload.content_text", "Payload content type text")
 PayloadContentBinary         = ProtoField.bytes("mcdata.payload.content_binary", "Payload content type binary")
 PayloadContentHyperlink      = ProtoField.string("mcdata.payload.content_hyperlink", "Payload content type hyperlink")
@@ -211,6 +214,7 @@ mcdata_protocol.fields = {
     DateTime,
     ConversationID,
     MessageID,
+    InformationElementID,
     DispositionRequest,
     DispositionNotification,
     DispositionRequestFD,
@@ -226,6 +230,8 @@ mcdata_protocol.fields = {
     UserLocation,
     ApplicationMetadataContainer,
     Metadata,
+    PayloadContentLength,
+    PayloadContentType,
     PayloadContentText,
     PayloadContentBinary,
     PayloadContentHyperlink,
@@ -375,14 +381,16 @@ function AppendOptionalIEIs(buffer, subtree, pos, off_network)
     while pos < length do
         local internal_IEI = buffer(pos, 1):uint()
         local internal_IEI_upper_bits = bit.band(internal_IEI, 0xF0) -- extract the first 4 bits of the byte
-        pos = pos + 1
 
         local internal_IEI_text = ""
         if internal_IEI_upper_bits == 128 or internal_IEI_upper_bits == 144 or internal_IEI_upper_bits == 160 then
             internal_IEI_text = IEI_codes[internal_IEI_upper_bits]
+            subtree:add(InformationElementID, buffer(pos, 1), internal_IEI_upper_bits)
         elseif internal_IEI >= 33 and internal_IEI <= 200 then
             internal_IEI_text = IEI_codes[internal_IEI]
+            subtree:add(InformationElementID, buffer(pos, 1))
         end
+        pos = pos + 1
 
         if internal_IEI_text == "InReplyTo message ID" then
             subtree:add(InReplyToMessageID, buffer(pos, 16))
@@ -400,8 +408,12 @@ function AppendOptionalIEIs(buffer, subtree, pos, off_network)
 
         elseif internal_IEI_text == "Payload" then
             local payload_length =  buffer(pos, 2):uint() - 1
+            local payload_length_buf = buffer(pos, 2)
+            subtree:add(PayloadContentLength, payload_length_buf)
             pos = pos + 2
             local payload_type = PayloadContentType_codes[buffer(pos, 1):uint()]
+            local payload_type_buf = buffer(pos, 1)
+            subtree:add(PayloadContentType, payload_type_buf)
             pos = pos + 1
             local payload_buf = buffer(pos, payload_length)
             if payload_type == "TEXT" then
