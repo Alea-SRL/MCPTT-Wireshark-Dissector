@@ -491,6 +491,3 @@ function monp_mcvideo_dissector(buffer, subtree)
 end
 
 DissectorTable.get("udp.port"):add(8809, monp_protocol)
-
--- porta custom nostra, da rimuovere
-DissectorTable.get("udp.port"):add(54545, monp_protocol)
