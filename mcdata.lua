@@ -363,6 +363,8 @@ function mcdata_protocol.dissector(buffer, pinfo, tree)
         subtree:add(MessageID, message_id_buf, FormatUUID(message_id_buf:bytes():tohex()))
         pos = pos + 16
 
+        pos = AddStringWithLength(buffer, subtree, SenderID, pos)
+
         AppendOptionalIEIs(buffer, subtree, pos, true)
 
     elseif msg_type_text == "PROTECTED SDS SIGNALLING PAYLOAD" or
