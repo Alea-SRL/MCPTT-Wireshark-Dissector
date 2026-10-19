@@ -449,6 +449,9 @@ function AppendOptionalIEIs(buffer, subtree, pos, off_network)
             AppendSecurityParametersAndPayload(buffer, subtree, pos, field_length, off_network)
             pos = pos + field_length
 
+        elseif internal_IEI_text == "MCData group ID" then
+            pos = AddStringWithLength(buffer, subtree, GroupID, pos)
+
         elseif internal_IEI_text == "Recipient MCData user ID" then
             pos = AddStringWithLength(buffer, subtree, RecipientID, pos)
 
